@@ -548,3 +548,202 @@ class EmergencyAlert(models.Model):
             delta = self.response_time - self.created_at
             return int(delta.total_seconds() / 60)
         return None
+
+
+class Medication(models.Model):
+    """
+    Medication prescribed by clinic staff to students
+    Tracks medication details, dosage schedule, and duration
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='medications',
+        limit_choices_to={'role': 'student'}
+    )
+    prescribed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prescribed_medications',
+        limit_choices_to={'role': 'staff'}
+    )
+    
+    # Medication details
+    name = models.CharField(
+        max_length=200,
+        help_text='Medication name (e.g., Paracetamol, Amoxicillin)'
+    )
+    dosage = models.CharField(
+        max_length=100,
+        help_text='Dosage amount (e.g., 500mg, 2 tablets)'
+    )
+    frequency = models.CharField(
+        max_length=50,
+        help_text='How often (e.g., 3x daily, every 8 hours, as needed)'
+    )
+    schedule_times = models.JSONField(
+        default=list,
+        help_text='Specific times to take medication ["08:00", "14:00", "20:00"]'
+    )
+    
+    # Duration
+    start_date = models.DateField(
+        help_text='When to start taking medication'
+    )
+    end_date = models.DateField(
+        help_text='When to stop taking medication'
+    )
+    
+    # Instructions
+    instructions = models.TextField(
+        blank=True,
+        help_text='Special instructions (e.g., take with food, avoid alcohol)'
+    )
+    purpose = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='What condition this treats'
+    )
+    
+    # Status
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Whether medication is currently active'
+    )
+    
+    # Linked to symptom record (optional)
+    symptom_record = models.ForeignKey(
+        SymptomRecord,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prescribed_medications'
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'medications'
+        verbose_name = 'Medication'
+        verbose_name_plural = 'Medications'
+        ordering = ['-start_date']
+        indexes = [
+            models.Index(fields=['student', 'is_active']),
+            models.Index(fields=['start_date', 'end_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} for {self.student.name} ({self.dosage}, {self.frequency})"
+    
+    @property
+    def is_current(self):
+        """Check if medication is currently active based on dates"""
+        today = timezone.now().date()
+        return self.is_active and self.start_date <= today <= self.end_date
+    
+    @property
+    def days_remaining(self):
+        """Calculate days remaining in medication course"""
+        if not self.is_current:
+            return 0
+        delta = self.end_date - timezone.now().date()
+        return max(0, delta.days)
+
+
+class MedicationLog(models.Model):
+    """
+    Log of medication intake - tracks adherence
+    Each scheduled dose creates a log entry
+    """
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('taken', 'Taken'),
+        ('missed', 'Missed'),
+        ('skipped', 'Skipped'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    medication = models.ForeignKey(
+        Medication,
+        on_delete=models.CASCADE,
+        related_name='logs'
+    )
+    
+    # Schedule
+    scheduled_date = models.DateField(
+        help_text='Date medication should be taken'
+    )
+    scheduled_time = models.TimeField(
+        help_text='Time medication should be taken'
+    )
+    
+    # Actual intake
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    taken_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When medication was actually taken'
+    )
+    
+    # Notes
+    notes = models.TextField(
+        blank=True,
+        help_text='Student notes (e.g., felt nauseous, forgot)'
+    )
+    
+    # Reminder sent
+    reminder_sent = models.BooleanField(
+        default=False,
+        help_text='Whether reminder notification was sent'
+    )
+    reminder_sent_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'medication_logs'
+        verbose_name = 'Medication Log'
+        verbose_name_plural = 'Medication Logs'
+        ordering = ['-scheduled_date', '-scheduled_time']
+        unique_together = ['medication', 'scheduled_date', 'scheduled_time']
+        indexes = [
+            models.Index(fields=['medication', 'status']),
+            models.Index(fields=['scheduled_date', 'scheduled_time']),
+        ]
+    
+    def __str__(self):
+        return f"{self.medication.name} - {self.scheduled_date} {self.scheduled_time} ({self.get_status_display()})"
+    
+    def mark_as_taken(self, notes=''):
+        """Mark medication as taken"""
+        self.status = 'taken'
+        self.taken_at = timezone.now()
+        self.notes = notes
+        self.save()
+    
+    @property
+    def is_overdue(self):
+        """Check if dose is overdue"""
+        if self.status != 'pending':
+            return False
+        now = timezone.now()
+        scheduled_datetime = timezone.make_aware(
+            timezone.datetime.combine(self.scheduled_date, self.scheduled_time)
+        )
+        return now > scheduled_datetime

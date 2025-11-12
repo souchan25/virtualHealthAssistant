@@ -7,7 +7,8 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     SymptomRecord, HealthInsight, ChatSession, 
-    ConsentLog, AuditLog, DepartmentStats, EmergencyAlert
+    ConsentLog, AuditLog, DepartmentStats, EmergencyAlert,
+    Medication, MedicationLog
 )
 
 User = get_user_model()
@@ -208,3 +209,76 @@ class EmergencyTriggerSerializer(serializers.Serializer):
         allow_blank=True,
         default=''
     )
+
+
+class MedicationLogSerializer(serializers.ModelSerializer):
+    """Serializer for medication logs (adherence tracking)"""
+    medication_name = serializers.CharField(source='medication.name', read_only=True)
+    is_overdue = serializers.BooleanField(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = MedicationLog
+        fields = [
+            'id', 'medication', 'medication_name', 'scheduled_date', 
+            'scheduled_time', 'status', 'status_display', 'taken_at', 
+            'notes', 'reminder_sent', 'is_overdue', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'reminder_sent']
+
+
+class MedicationSerializer(serializers.ModelSerializer):
+    """Serializer for medications"""
+    student_school_id = serializers.CharField(source='student.school_id', read_only=True)
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    prescribed_by_name = serializers.CharField(source='prescribed_by.name', read_only=True, allow_null=True)
+    is_current = serializers.BooleanField(read_only=True)
+    days_remaining = serializers.IntegerField(read_only=True)
+    
+    # Include recent logs (optional)
+    recent_logs = serializers.SerializerMethodField()
+    adherence_rate = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Medication
+        fields = [
+            'id', 'student', 'student_school_id', 'student_name',
+            'prescribed_by', 'prescribed_by_name', 'name', 'dosage',
+            'frequency', 'schedule_times', 'start_date', 'end_date',
+            'instructions', 'purpose', 'is_active', 'is_current',
+            'days_remaining', 'symptom_record', 'created_at', 'updated_at',
+            'recent_logs', 'adherence_rate'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'prescribed_by']
+    
+    def get_recent_logs(self, obj):
+        """Get last 7 logs"""
+        logs = obj.logs.all()[:7]
+        return MedicationLogSerializer(logs, many=True).data
+    
+    def get_adherence_rate(self, obj):
+        """Calculate adherence percentage"""
+        total_logs = obj.logs.exclude(status='pending').count()
+        if total_logs == 0:
+            return None
+        taken_logs = obj.logs.filter(status='taken').count()
+        return round((taken_logs / total_logs) * 100, 1)
+
+
+class MedicationCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating medications (staff only)"""
+    
+    class Meta:
+        model = Medication
+        fields = [
+            'student', 'name', 'dosage', 'frequency', 'schedule_times',
+            'start_date', 'end_date', 'instructions', 'purpose', 'symptom_record'
+        ]
+    
+    def validate(self, data):
+        """Validate dates"""
+        if data['end_date'] < data['start_date']:
+            raise serializers.ValidationError({
+                'end_date': 'End date must be after start date'
+            })
+        return data

@@ -64,6 +64,18 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresStaff: true }
   },
   {
+    path: '/staff/prescribe',
+    name: 'staff-prescribe',
+    component: () => import('@/views/staff/MedicationPrescribe.vue'),
+    meta: { requiresAuth: true, requiresStaff: true }
+  },
+  {
+    path: '/medications',
+    name: 'medications',
+    component: () => import('@/views/MedicationList.vue'),
+    meta: { requiresAuth: true, requiresStudent: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue')

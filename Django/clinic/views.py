@@ -14,7 +14,7 @@ from django.db.models import Count, Q
 from datetime import timedelta
 import uuid
 
-from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats, EmergencyAlert
+from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats, EmergencyAlert, Medication, MedicationLog
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer,
     SymptomRecordSerializer, SymptomSubmissionSerializer,
@@ -22,7 +22,8 @@ from .serializers import (
     ChatSessionSerializer, ChatMessageSerializer,
     ConsentLogSerializer, AuditLogSerializer,
     DepartmentStatsSerializer, DashboardStatsSerializer,
-    EmergencyAlertSerializer, EmergencyTriggerSerializer
+    EmergencyAlertSerializer, EmergencyTriggerSerializer,
+    MedicationSerializer, MedicationCreateSerializer, MedicationLogSerializer
 )
 from .permissions import IsStudent, IsClinicStaff, IsOwnerOrStaff, CanModifyProfile, HasDataConsent
 from .ml_service import get_ml_predictor
@@ -857,4 +858,263 @@ def emergency_resolve(request, emergency_id):
     return Response({
         'message': f'Emergency {emergency.get_status_display()}',
         'emergency': serializer.data
+    })
+
+
+# ============================================================================
+# Medication Management System
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_list(request):
+    """
+    Get medications for current user
+    GET /api/medications/
+    
+    Students: Their own medications
+    Staff: Can filter by student_id
+    """
+    if request.user.role == 'staff':
+        # Staff can query specific student
+        student_id = request.GET.get('student_id')
+        if student_id:
+            medications = Medication.objects.filter(
+                student__school_id=student_id
+            ).select_related('student', 'prescribed_by', 'symptom_record')
+        else:
+            # All medications (for staff dashboard)
+            medications = Medication.objects.all().select_related(
+                'student', 'prescribed_by'
+            )[:50]  # Limit to recent 50
+    else:
+        # Students see only their own
+        medications = Medication.objects.filter(
+            student=request.user
+        ).select_related('prescribed_by', 'symptom_record')
+    
+    # Filter by active status
+    active_only = request.GET.get('active_only', 'false').lower() == 'true'
+    if active_only:
+        medications = medications.filter(is_active=True)
+    
+    serializer = MedicationSerializer(medications, many=True)
+    return Response({
+        'count': medications.count(),
+        'medications': serializer.data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsClinicStaff])
+def medication_create(request):
+    """
+    Staff prescribes medication to student
+    POST /api/medications/
+    """
+    serializer = MedicationCreateSerializer(data=request.data)
+    
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Create medication
+    medication = serializer.save(prescribed_by=request.user)
+    
+    # Auto-generate medication logs based on schedule
+    from datetime import datetime, timedelta
+    
+    current_date = medication.start_date
+    while current_date <= medication.end_date:
+        for time_str in medication.schedule_times:
+            # Parse time (HH:MM format)
+            try:
+                scheduled_time = datetime.strptime(time_str, '%H:%M').time()
+                MedicationLog.objects.create(
+                    medication=medication,
+                    scheduled_date=current_date,
+                    scheduled_time=scheduled_time,
+                    status='pending'
+                )
+            except ValueError:
+                pass  # Skip invalid time formats
+        
+        current_date += timedelta(days=1)
+    
+    # Log the prescription
+    AuditLog.objects.create(
+        user=request.user,
+        action='medication_prescribed',
+        details={
+            'medication_id': str(medication.id),
+            'student': medication.student.school_id,
+            'medication_name': medication.name,
+            'duration_days': (medication.end_date - medication.start_date).days + 1
+        }
+    )
+    
+    return Response({
+        'message': 'Medication prescribed successfully',
+        'medication': MedicationSerializer(medication).data
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_detail(request, medication_id):
+    """
+    Get medication details
+    GET /api/medications/<id>/
+    """
+    try:
+        medication = Medication.objects.select_related(
+            'student', 'prescribed_by', 'symptom_record'
+        ).prefetch_related('logs').get(id=medication_id)
+    except Medication.DoesNotExist:
+        return Response({'error': 'Medication not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Permission check
+    if request.user.role != 'staff' and medication.student != request.user:
+        return Response(
+            {'error': 'You do not have permission to view this medication'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    serializer = MedicationSerializer(medication)
+    return Response(serializer.data)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsClinicStaff])
+def medication_update(request, medication_id):
+    """
+    Update medication (staff only)
+    PATCH /api/medications/<id>/
+    """
+    try:
+        medication = Medication.objects.get(id=medication_id)
+    except Medication.DoesNotExist:
+        return Response({'error': 'Medication not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Update fields
+    allowed_fields = ['dosage', 'frequency', 'instructions', 'is_active', 'end_date']
+    for field in allowed_fields:
+        if field in request.data:
+            setattr(medication, field, request.data[field])
+    
+    medication.save()
+    
+    return Response({
+        'message': 'Medication updated',
+        'medication': MedicationSerializer(medication).data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_logs_today(request):
+    """
+    Get today's medication schedule for student
+    GET /api/medications/logs/today/
+    """
+    today = timezone.now().date()
+    
+    if request.user.role == 'student':
+        # Get student's medications
+        medications = Medication.objects.filter(
+            student=request.user,
+            is_active=True
+        )
+        
+        logs = MedicationLog.objects.filter(
+            medication__in=medications,
+            scheduled_date=today
+        ).select_related('medication').order_by('scheduled_time')
+        
+    else:
+        # Staff sees all for the day
+        logs = MedicationLog.objects.filter(
+            scheduled_date=today
+        ).select_related('medication', 'medication__student')[:100]
+    
+    serializer = MedicationLogSerializer(logs, many=True)
+    return Response({
+        'date': today,
+        'count': logs.count(),
+        'logs': serializer.data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def medication_log_mark_taken(request, log_id):
+    """
+    Mark medication dose as taken
+    POST /api/medications/logs/<id>/taken/
+    """
+    try:
+        log = MedicationLog.objects.select_related('medication').get(id=log_id)
+    except MedicationLog.DoesNotExist:
+        return Response({'error': 'Log not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Permission check
+    if request.user.role != 'staff' and log.medication.student != request.user:
+        return Response(
+            {'error': 'Permission denied'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    notes = request.data.get('notes', '')
+    log.mark_as_taken(notes=notes)
+    
+    return Response({
+        'message': 'Marked as taken',
+        'log': MedicationLogSerializer(log).data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_adherence(request):
+    """
+    Get medication adherence statistics
+    GET /api/medications/adherence/
+    """
+    if request.user.role == 'student':
+        medications = Medication.objects.filter(student=request.user, is_active=True)
+    else:
+        student_id = request.GET.get('student_id')
+        if student_id:
+            medications = Medication.objects.filter(
+                student__school_id=student_id,
+                is_active=True
+            )
+        else:
+            return Response({'error': 'student_id required for staff'}, status=400)
+    
+    stats = []
+    for med in medications:
+        total_logs = med.logs.exclude(status='pending').count()
+        if total_logs > 0:
+            taken_count = med.logs.filter(status='taken').count()
+            missed_count = med.logs.filter(status='missed').count()
+            adherence_rate = (taken_count / total_logs) * 100
+            
+            stats.append({
+                'medication_id': str(med.id),
+                'medication_name': med.name,
+                'total_doses': total_logs,
+                'taken': taken_count,
+                'missed': missed_count,
+                'adherence_rate': round(adherence_rate, 1),
+                'days_remaining': med.days_remaining
+            })
+    
+    # Overall adherence
+    total_all = sum(s['total_doses'] for s in stats)
+    taken_all = sum(s['taken'] for s in stats)
+    overall_rate = (taken_all / total_all * 100) if total_all > 0 else 0
+    
+    return Response({
+        'overall_adherence_rate': round(overall_rate, 1),
+        'medications': stats
     })

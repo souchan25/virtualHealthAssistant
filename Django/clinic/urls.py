@@ -49,6 +49,15 @@ urlpatterns = [
     path('emergency/<uuid:emergency_id>/respond/', views.emergency_respond, name='emergency-respond'),
     path('emergency/<uuid:emergency_id>/resolve/', views.emergency_resolve, name='emergency-resolve'),
     
+    # Medication Management endpoints
+    path('medications/', views.medication_list, name='medication-list'),
+    path('medications/create/', views.medication_create, name='medication-create'),
+    path('medications/<uuid:medication_id>/', views.medication_detail, name='medication-detail'),
+    path('medications/<uuid:medication_id>/update/', views.medication_update, name='medication-update'),
+    path('medications/logs/today/', views.medication_logs_today, name='medication-logs-today'),
+    path('medications/logs/<uuid:log_id>/taken/', views.medication_log_mark_taken, name='medication-log-taken'),
+    path('medications/adherence/', views.medication_adherence, name='medication-adherence'),
+    
     # Router URLs (viewsets)
     path('', include(router.urls)),
 ]
