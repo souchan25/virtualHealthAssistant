@@ -69,6 +69,13 @@ class SymptomRecordSerializer(serializers.ModelSerializer):
             'requires_referral', 'referral_triggered', 'referral_date',
             'created_at', 'updated_at'
         ]
+    
+    def to_representation(self, instance):
+        """Ensure confidence is named correctly for frontend"""
+        data = super().to_representation(instance)
+        # Add confidence field for frontend compatibility
+        data['confidence'] = data.get('confidence_score')
+        return data
 
 
 class SymptomSubmissionSerializer(serializers.Serializer):

@@ -594,7 +594,7 @@ def student_directory(request):
     queryset = User.objects.filter(role='student').prefetch_related(
         'symptom_records',
         'medications',
-        'followups'
+        'follow_ups'
     )
     
     # Filters
@@ -630,7 +630,7 @@ def student_directory(request):
         adherence_rate = round((taken_logs / total_logs * 100) if total_logs > 0 else 100, 1)
         
         # Get follow-ups
-        pending_followups = student.followups.filter(status='pending').exists()
+        pending_followups = student.follow_ups.filter(status='pending').exists()
         
         student_data = {
             'id': student.id,
@@ -1371,21 +1371,20 @@ def staff_analytics(request):
     
     # Symptom severity distribution (mock data based on confidence)
     severity_distribution = {
-        'mild': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence__lt=0.5).count(),
-        'moderate': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence__gte=0.5, confidence__lt=0.75).count(),
-        'severe': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence__gte=0.75, confidence__lt=0.9).count(),
-        'critical': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence__gte=0.9).count(),
+        'mild': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__lt=0.5).count(),
+        'moderate': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.5, confidence_score__lt=0.75).count(),
+        'severe': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.75, confidence_score__lt=0.9).count(),
+        'critical': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.9).count(),
     }
     
     # Most common symptoms
-    from django.db.models import JSONField
     from collections import Counter
     
     symptom_records = SymptomRecord.objects.filter(created_at__date__gte=start_date)
     all_symptoms = []
     for record in symptom_records:
-        if record.symptoms_reported:
-            all_symptoms.extend(record.symptoms_reported)
+        if record.symptoms:  # Changed from symptoms_reported to symptoms
+            all_symptoms.extend(record.symptoms)
     
     symptom_counter = Counter(all_symptoms)
     common_symptoms = [

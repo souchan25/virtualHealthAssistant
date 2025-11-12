@@ -332,6 +332,7 @@ const fetchAnalytics = async () => {
       params: { period: selectedPeriod.value }
     })
 
+    console.log('Analytics API Response:', response.data)
     const data = response.data
 
     // Map real data to stats
@@ -360,9 +361,12 @@ const fetchAnalytics = async () => {
         critical: 0
       }
     }
+    
+    console.log('Stats updated:', stats.value)
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Failed to load analytics'
+    error.value = err.response?.data?.error || err.message || 'Failed to load analytics'
     console.error('Error fetching analytics:', err)
+    console.error('Error details:', err.response?.data)
   } finally {
     loading.value = false
   }

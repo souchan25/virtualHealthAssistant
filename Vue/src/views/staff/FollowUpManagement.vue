@@ -234,10 +234,13 @@ const fetchFollowups = async () => {
 
   try {
     const response = await api.get('/followups/needs-review/')
+    console.log('FollowUps API Response:', response.data)
     followups.value = response.data || []
+    console.log('Follow-ups loaded:', followups.value.length)
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Failed to load follow-ups'
+    error.value = err.response?.data?.error || err.message || 'Failed to load follow-ups'
     console.error('Error fetching follow-ups:', err)
+    console.error('Error details:', err.response?.data)
   } finally {
     loading.value = false
   }

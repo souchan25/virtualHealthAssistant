@@ -297,10 +297,13 @@ const fetchStudents = async () => {
 
   try {
     const response = await api.get('/staff/students/')
+    console.log('Student API Response:', response.data)
     students.value = response.data.students || []
+    console.log('Students loaded:', students.value.length)
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Failed to load students'
+    error.value = err.response?.data?.error || err.message || 'Failed to load students'
     console.error('Error fetching students:', err)
+    console.error('Error details:', err.response?.data)
   } finally {
     loading.value = false
   }
