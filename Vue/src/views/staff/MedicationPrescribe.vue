@@ -1,6 +1,12 @@
 <template>
   <div class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
+      <!-- Back Button -->
+      <router-link to="/staff" class="inline-flex items-center text-cpsu-green hover:text-green-700 mb-6">
+        <span class="text-2xl mr-2">←</span>
+        <span class="font-semibold">Back to Staff Dashboard</span>
+      </router-link>
+
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-cpsu-green mb-2">Prescribe Medication</h1>

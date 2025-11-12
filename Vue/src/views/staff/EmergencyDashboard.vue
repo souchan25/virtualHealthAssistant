@@ -1,5 +1,11 @@
 <template>
   <div class="container mx-auto px-6 py-8">
+    <!-- Back Button -->
+    <router-link to="/staff" class="inline-flex items-center text-cpsu-green hover:text-green-700 mb-6">
+      <span class="text-2xl mr-2">←</span>
+      <span class="font-semibold">Back to Staff Dashboard</span>
+    </router-link>
+
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
         <span class="text-4xl">🚨</span>
