@@ -1,27 +1,40 @@
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col">
-    <!-- Navigation -->
-    <nav class="bg-cpsu-green text-white shadow-lg">
+    <!-- Navigation Header -->
+    <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
       <div class="container mx-auto px-6 py-4">
         <div class="flex justify-between items-center">
-          <router-link to="/dashboard" class="text-2xl font-heading font-bold">
-            💬 Health Chat Assistant
+          <router-link to="/dashboard" class="text-cpsu-green">
+            <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+            <p class="text-sm text-gray-600">Mighty Hornbills</p>
           </router-link>
-          <div class="flex items-center gap-4">
-            <button
-              v-if="chatStore.messages.length > 0"
-              @click="clearChat"
-              class="text-cpsu-yellow hover:text-white px-4 py-2 border border-cpsu-yellow rounded-lg transition-colors hover:bg-cpsu-yellow hover:text-cpsu-green"
-            >
-              🗑️ Clear Chat
-            </button>
-            <router-link to="/dashboard" class="text-cpsu-yellow hover:text-white">
-              ← Back to Dashboard
-            </router-link>
+          <div class="flex items-center space-x-4">
+            <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
+            <router-link to="/symptom-checker" class="text-gray-700 hover:text-cpsu-green">Check Symptoms</router-link>
+            <router-link to="/medications" class="text-gray-700 hover:text-cpsu-green">Medications</router-link>
+            <router-link to="/followups" class="text-gray-700 hover:text-cpsu-green">Follow-Ups</router-link>
+            <router-link to="/health-dashboard" class="text-gray-700 hover:text-cpsu-green">Analytics</router-link>
+            <router-link to="/chat" class="text-cpsu-green font-semibold">Chat</router-link>
+            <router-link to="/history" class="text-gray-700 hover:text-cpsu-green">History</router-link>
+            <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green">Profile</router-link>
           </div>
         </div>
       </div>
     </nav>
+
+    <!-- Chat Header -->
+    <div class="bg-cpsu-green text-white px-6 py-4">
+      <div class="container mx-auto max-w-4xl flex justify-between items-center">
+        <h2 class="text-2xl font-heading font-bold">💬 Health Chat Assistant</h2>
+        <button
+          v-if="chatStore.messages.length > 0"
+          @click="clearChat"
+          class="text-cpsu-yellow hover:text-white px-4 py-2 border border-cpsu-yellow rounded-lg transition-colors hover:bg-cpsu-yellow hover:text-cpsu-green"
+        >
+          🗑️ Clear Chat
+        </button>
+      </div>
+    </div>
 
     <!-- Chat Container -->
     <div class="flex-1 container mx-auto px-6 py-8 max-w-4xl flex flex-col">

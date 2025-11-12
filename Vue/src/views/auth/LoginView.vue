@@ -8,7 +8,6 @@
           <p class="text-sm text-cpsu-yellow">Mighty Hornbills</p>
         </router-link>
         <div class="space-x-4">
-          <router-link to="/login" class="btn-secondary">Login</router-link>
           <router-link to="/register" class="bg-white text-cpsu-green font-semibold px-6 py-2.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">Register</router-link>
         </div>
       </div>
