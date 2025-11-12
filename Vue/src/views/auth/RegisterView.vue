@@ -1,15 +1,30 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-      <!-- Logo and Header -->
-      <div class="text-center">
-        <h2 class="text-4xl font-heading font-bold text-cpsu-green">CPSU Health Assistant</h2>
-        <p class="mt-2 text-sm text-gray-600">Create your account</p>
+  <div class="min-h-screen bg-gradient-to-br from-cpsu-green to-cpsu-green-dark">
+    <!-- Header Navigation -->
+    <nav class="container mx-auto px-6 py-6">
+      <div class="flex justify-between items-center">
+        <router-link to="/" class="text-white">
+          <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+          <p class="text-sm text-cpsu-yellow">Mighty Hornbills</p>
+        </router-link>
+        <div class="space-x-4">
+          <router-link to="/login" class="btn-secondary">Login</router-link>
+          <router-link to="/register" class="bg-white text-cpsu-green font-semibold px-6 py-2.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">Register</router-link>
+        </div>
       </div>
+    </nav>
 
-      <!-- Registration Form -->
-      <div class="card">
-        <form @submit.prevent="handleRegister" class="space-y-6">
+    <!-- Registration Form -->
+    <div class="container mx-auto px-6 py-12 flex items-center justify-center">
+      <div class="max-w-md w-full">
+        <!-- Form Card -->
+        <div class="bg-white rounded-lg shadow-xl p-8">
+          <div class="text-center mb-8">
+            <h2 class="text-3xl font-heading font-bold text-cpsu-green">Create Account</h2>
+            <p class="mt-2 text-sm text-gray-600">Join CPSU Health Assistant</p>
+          </div>
+
+          <form @submit.prevent="handleRegister" class="space-y-6">
           <!-- Error Message -->
           <div v-if="authStore.error" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
             {{ authStore.error }}
@@ -140,6 +155,7 @@
           </div>
         </form>
       </div>
+    </div>
     </div>
   </div>
 </template>

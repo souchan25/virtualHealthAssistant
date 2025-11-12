@@ -1,12 +1,36 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <!-- Back Button -->
-    <router-link to="/dashboard" class="inline-flex items-center text-cpsu-green hover:text-green-700 mb-6">
-      <span class="text-2xl mr-2">←</span>
-      <span class="font-semibold">Back to Dashboard</span>
-    </router-link>
+  <div class="min-h-screen bg-gray-50">
+    <!-- Navigation Header -->
+    <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
+      <div class="container mx-auto px-6 py-4">
+        <div class="flex justify-between items-center">
+          <router-link to="/dashboard" class="text-cpsu-green">
+            <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+            <p class="text-sm text-gray-600">Mighty Hornbills</p>
+          </router-link>
+          <div class="flex items-center space-x-4">
+            <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
+            <router-link to="/symptom-checker" class="text-gray-700 hover:text-cpsu-green">Check Symptoms</router-link>
+            <router-link to="/medications" class="text-gray-700 hover:text-cpsu-green">Medications</router-link>
+            <router-link to="/followups" class="text-cpsu-green font-semibold">Follow-Ups</router-link>
+            <router-link to="/health-dashboard" class="text-gray-700 hover:text-cpsu-green">Analytics</router-link>
+            <router-link to="/chat" class="text-gray-700 hover:text-cpsu-green">Chat</router-link>
+            <router-link to="/history" class="text-gray-700 hover:text-cpsu-green">History</router-link>
+            <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green">Profile</router-link>
+          </div>
+        </div>
+      </div>
+    </nav>
 
-    <h1 class="text-3xl font-bold text-cpsu-green mb-8">📋 My Follow-Ups</h1>
+    <!-- Page Content -->
+    <div class="container mx-auto px-4 py-8">
+      <!-- Back Button -->
+      <router-link to="/dashboard" class="inline-flex items-center text-cpsu-green hover:text-green-700 mb-6">
+        <span class="text-2xl mr-2">←</span>
+        <span class="font-semibold">Back to Dashboard</span>
+      </router-link>
+
+      <h1 class="text-3xl font-bold text-cpsu-green mb-8">📋 My Follow-Ups</h1>
 
     <!-- Error Alert -->
     <div v-if="followupStore.error" class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
@@ -192,6 +216,7 @@
           </div>
         </form>
       </div>
+    </div>
     </div>
   </div>
 </template>
