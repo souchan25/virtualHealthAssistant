@@ -40,6 +40,7 @@ urlpatterns = [
     # Clinic staff endpoints
     path('staff/dashboard/', views.clinic_dashboard, name='dashboard'),
     path('staff/students/', views.student_directory, name='students'),
+    path('staff/analytics/', views.staff_analytics, name='analytics'),
     path('staff/export/', views.export_report, name='export'),
     
     # Emergency SOS endpoints

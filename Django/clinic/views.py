@@ -589,7 +589,13 @@ def student_directory(request):
     Get filtered list of students with health records
     GET /api/staff/students/
     """
-    queryset = User.objects.filter(role='student').prefetch_related('symptom_records')
+    from django.db.models import Prefetch, Avg
+    
+    queryset = User.objects.filter(role='student').prefetch_related(
+        'symptom_records',
+        'medications',
+        'followups'
+    )
     
     # Filters
     department = request.query_params.get('department')
@@ -607,8 +613,44 @@ def student_directory(request):
     if has_symptoms == 'true':
         queryset = queryset.filter(symptom_records__isnull=False).distinct()
     
-    serializer = UserProfileSerializer(queryset, many=True)
-    return Response(serializer.data)
+    # Build enriched student data
+    students_data = []
+    for student in queryset:
+        # Get symptom records
+        recent_symptoms = student.symptom_records.order_by('-created_at')[:5]
+        last_visit = recent_symptoms.first().created_at if recent_symptoms.exists() else None
+        
+        # Get medications
+        active_meds = student.medications.filter(is_active=True)
+        
+        # Calculate adherence
+        med_logs = MedicationLog.objects.filter(medication__student=student)
+        total_logs = med_logs.count()
+        taken_logs = med_logs.filter(status='taken').count()
+        adherence_rate = round((taken_logs / total_logs * 100) if total_logs > 0 else 100, 1)
+        
+        # Get follow-ups
+        pending_followups = student.followups.filter(status='pending').exists()
+        
+        student_data = {
+            'id': student.id,
+            'name': student.name,
+            'school_id': student.school_id,
+            'department': student.department,
+            'total_visits': student.symptom_records.count(),
+            'last_visit': last_visit.isoformat() if last_visit else None,
+            'on_medication': active_meds.exists(),
+            'medication_count': active_meds.count(),
+            'adherence_rate': adherence_rate,
+            'pending_followup': pending_followups,
+            'recent_symptoms': recent_symptoms.exists(),
+            'recent_symptom_reports': SymptomRecordSerializer(recent_symptoms, many=True).data,
+            'medications': MedicationSerializer(active_meds, many=True).data
+        }
+        
+        students_data.append(student_data)
+    
+    return Response({'students': students_data})
 
 
 @api_view(['GET'])
@@ -1252,10 +1294,122 @@ def followup_needs_review(request):
     Get follow-ups that need staff review
     GET /api/followups/needs-review/
     """
-    followups = FollowUp.objects.filter(
-        status='completed',
-        reviewed_by__isnull=True
-    ).order_by('-response_date')
+    # Get all follow-ups that need attention
+    followups = FollowUp.objects.select_related('student', 'reviewed_by').order_by('-scheduled_date')
     
-    serializer = FollowUpSerializer(followups, many=True)
-    return Response(serializer.data)
+    # Enrich with student data
+    data = []
+    for followup in followups:
+        followup_data = FollowUpSerializer(followup).data
+        followup_data['student_name'] = followup.student.name
+        followup_data['student_school_id'] = followup.student.school_id
+        followup_data['student_department'] = followup.student.department
+        followup_data['reviewed_by_name'] = followup.reviewed_by.name if followup.reviewed_by else None
+        data.append(followup_data)
+    
+    return Response(data)
+
+
+# ============================================================================
+# Analytics Views (Real Data)
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsClinicStaff])
+def staff_analytics(request):
+    """
+    Get comprehensive analytics data for charts
+    GET /api/staff/analytics/?period=7d
+    
+    Periods: 7d, 30d, 90d, 1y
+    """
+    period = request.query_params.get('period', '30d')
+    
+    # Calculate date range
+    today = timezone.now().date()
+    if period == '7d':
+        start_date = today - timedelta(days=7)
+    elif period == '30d':
+        start_date = today - timedelta(days=30)
+    elif period == '90d':
+        start_date = today - timedelta(days=90)
+    elif period == '1y':
+        start_date = today - timedelta(days=365)
+    else:
+        start_date = today - timedelta(days=30)
+    
+    # Summary stats
+    total_consultations = SymptomRecord.objects.filter(created_at__date__gte=start_date).count()
+    unique_patients = SymptomRecord.objects.filter(created_at__date__gte=start_date).values('student').distinct().count()
+    emergency_alerts = EmergencyAlert.objects.filter(created_at__date__gte=start_date).count()
+    prescriptions = Medication.objects.filter(created_at__date__gte=start_date).count()
+    
+    # Top 10 diagnosed conditions
+    top_conditions = SymptomRecord.objects.filter(
+        created_at__date__gte=start_date
+    ).values('predicted_disease').annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    # Consultation trends (daily counts)
+    consultation_trends = []
+    current_date = start_date
+    while current_date <= today:
+        count = SymptomRecord.objects.filter(created_at__date=current_date).count()
+        consultation_trends.append({
+            'date': current_date.isoformat(),
+            'count': count
+        })
+        current_date += timedelta(days=1)
+    
+    # Consultations by department
+    dept_breakdown = SymptomRecord.objects.filter(
+        created_at__date__gte=start_date
+    ).values('student__department').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Symptom severity distribution (mock data based on confidence)
+    severity_distribution = {
+        'mild': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence__lt=0.5).count(),
+        'moderate': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence__gte=0.5, confidence__lt=0.75).count(),
+        'severe': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence__gte=0.75, confidence__lt=0.9).count(),
+        'critical': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence__gte=0.9).count(),
+    }
+    
+    # Most common symptoms
+    from django.db.models import JSONField
+    from collections import Counter
+    
+    symptom_records = SymptomRecord.objects.filter(created_at__date__gte=start_date)
+    all_symptoms = []
+    for record in symptom_records:
+        if record.symptoms_reported:
+            all_symptoms.extend(record.symptoms_reported)
+    
+    symptom_counter = Counter(all_symptoms)
+    common_symptoms = [
+        {
+            'symptom': symptom,
+            'count': count,
+            'percentage': round((count / len(all_symptoms) * 100) if all_symptoms else 0, 1)
+        }
+        for symptom, count in symptom_counter.most_common(10)
+    ]
+    
+    data = {
+        'period': period,
+        'summary': {
+            'total_consultations': total_consultations,
+            'unique_patients': unique_patients,
+            'emergency_alerts': emergency_alerts,
+            'prescriptions': prescriptions
+        },
+        'top_conditions': list(top_conditions),
+        'consultation_trends': consultation_trends,
+        'department_breakdown': list(dept_breakdown),
+        'severity_distribution': severity_distribution,
+        'common_symptoms': common_symptoms
+    }
+    
+    return Response(data)

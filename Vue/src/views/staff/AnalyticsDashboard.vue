@@ -143,9 +143,9 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="(symptom, index) in stats.common_symptoms" :key="symptom.name">
+                <tr v-for="(symptom, index) in stats.common_symptoms" :key="symptom.symptom">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ index + 1 }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ symptom.name }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ symptom.symptom }}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ symptom.count }}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div class="flex items-center">
@@ -327,39 +327,37 @@ const fetchAnalytics = async () => {
   error.value = null
 
   try {
-    // In a real app, this would be a dedicated analytics endpoint
-    // For now, we'll use the dashboard endpoint and enhance it
-    const response = await api.get('/staff/dashboard/', {
+    // Call the real analytics endpoint
+    const response = await api.get('/staff/analytics/', {
       params: { period: selectedPeriod.value }
     })
 
-    // Mock some analytics data based on dashboard response
+    const data = response.data
+
+    // Map real data to stats
     stats.value = {
-      total_consultations: response.data.students_with_symptoms_7days || 0,
-      unique_patients: response.data.total_students || 0,
-      emergency_alerts: 5, // Mock data
-      prescriptions: 23, // Mock data
-      common_symptoms: [
-        { name: 'Fever', count: 45, percentage: 78 },
-        { name: 'Cough', count: 38, percentage: 66 },
-        { name: 'Fatigue', count: 32, percentage: 55 },
-        { name: 'Headache', count: 28, percentage: 48 },
-        { name: 'Body Ache', count: 24, percentage: 41 }
-      ],
-      top_diseases: [
-        { disease: 'Common Cold', count: 28 },
-        { disease: 'Flu', count: 18 },
-        { disease: 'Migraine', count: 12 },
-        { disease: 'Gastritis', count: 9 },
-        { disease: 'Allergies', count: 7 }
-      ],
-      consultation_trend: generateTrendData(),
-      department_breakdown: response.data.department_breakdown || [],
-      severity_distribution: {
-        mild: 45,
-        moderate: 28,
-        severe: 12,
-        critical: 3
+      total_consultations: data.summary.total_consultations || 0,
+      unique_patients: data.summary.unique_patients || 0,
+      emergency_alerts: data.summary.emergency_alerts || 0,
+      prescriptions: data.summary.prescriptions || 0,
+      common_symptoms: data.common_symptoms || [],
+      top_diseases: data.top_conditions?.map((c: any) => ({
+        disease: c.predicted_disease,
+        count: c.count
+      })) || [],
+      consultation_trend: data.consultation_trends?.map((t: any) => ({
+        date: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        count: t.count
+      })) || [],
+      department_breakdown: data.department_breakdown?.map((d: any) => ({
+        department: d.student__department || 'Unknown',
+        count: d.count
+      })) || [],
+      severity_distribution: data.severity_distribution || {
+        mild: 0,
+        moderate: 0,
+        severe: 0,
+        critical: 0
       }
     }
   } catch (err: any) {
@@ -368,22 +366,6 @@ const fetchAnalytics = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const generateTrendData = () => {
-  const days = selectedPeriod.value === '7d' ? 7 : selectedPeriod.value === '30d' ? 30 : selectedPeriod.value === '90d' ? 90 : 365
-  const data = []
-  
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date()
-    date.setDate(date.getDate() - i)
-    data.push({
-      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      count: Math.floor(Math.random() * 15) + 5
-    })
-  }
-  
-  return data
 }
 
 // Watch period changes
