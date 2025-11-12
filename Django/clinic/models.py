@@ -224,6 +224,141 @@ class SymptomRecord(models.Model):
         return self.requires_referral
 
 
+class FollowUp(models.Model):
+    """
+    Automated follow-up tracking for symptom reports
+    Auto-scheduled after symptom submission to track recovery
+    """
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending Response'),
+        ('completed', 'Completed'),
+        ('overdue', 'Overdue'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    OUTCOME_CHOICES = [
+        ('improved', 'Condition Improved'),
+        ('same', 'No Change'),
+        ('worse', 'Condition Worsened'),
+        ('resolved', 'Fully Recovered'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    symptom_record = models.ForeignKey(
+        'SymptomRecord',
+        on_delete=models.CASCADE,
+        related_name='follow_ups'
+    )
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='follow_ups',
+        limit_choices_to={'role': 'student'}
+    )
+    
+    # Scheduling
+    scheduled_date = models.DateField(
+        help_text='When follow-up is due (auto: 3 days after symptom report)'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    
+    # Response data (filled by student)
+    response_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When student responded to follow-up'
+    )
+    outcome = models.CharField(
+        max_length=20,
+        choices=OUTCOME_CHOICES,
+        null=True,
+        blank=True
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text='Student notes on recovery progress'
+    )
+    still_experiencing_symptoms = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text='Are original symptoms still present?'
+    )
+    new_symptoms = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Any new symptoms developed since last report'
+    )
+    
+    # Staff review
+    reviewed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_followups',
+        limit_choices_to={'role': 'staff'}
+    )
+    review_notes = models.TextField(
+        blank=True,
+        help_text='Staff review notes'
+    )
+    requires_appointment = models.BooleanField(
+        default=False,
+        help_text='Does student need clinic visit?'
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'follow_ups'
+        verbose_name = 'Follow-Up'
+        verbose_name_plural = 'Follow-Ups'
+        ordering = ['scheduled_date', '-created_at']
+        indexes = [
+            models.Index(fields=['student', 'status', 'scheduled_date']),
+            models.Index(fields=['scheduled_date', 'status']),
+            models.Index(fields=['symptom_record']),
+        ]
+    
+    def __str__(self):
+        return f"Follow-up: {self.student.name} - {self.scheduled_date} ({self.get_status_display()})"
+    
+    def check_overdue(self):
+        """Check if follow-up is overdue and update status"""
+        from datetime import date
+        
+        if self.status == 'pending' and self.scheduled_date < date.today():
+            self.status = 'overdue'
+            self.save()
+        
+        return self.status == 'overdue'
+    
+    @classmethod
+    def create_from_symptom(cls, symptom_record, days_ahead=3):
+        """
+        Auto-create follow-up scheduled N days after symptom report
+        Default: 3 days ahead
+        """
+        from datetime import timedelta, date
+        
+        scheduled_date = date.today() + timedelta(days=days_ahead)
+        
+        follow_up = cls.objects.create(
+            symptom_record=symptom_record,
+            student=symptom_record.student,
+            scheduled_date=scheduled_date
+        )
+        
+        return follow_up
+
+
 class HealthInsight(models.Model):
     """
     AI-generated health insights from chat sessions

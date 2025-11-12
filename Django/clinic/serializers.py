@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from .models import (
     SymptomRecord, HealthInsight, ChatSession, 
     ConsentLog, AuditLog, DepartmentStats, EmergencyAlert,
-    Medication, MedicationLog
+    Medication, MedicationLog, FollowUp
 )
 
 User = get_user_model()
@@ -282,3 +282,46 @@ class MedicationCreateSerializer(serializers.ModelSerializer):
                 'end_date': 'End date must be after start date'
             })
         return data
+
+
+class FollowUpSerializer(serializers.ModelSerializer):
+    """Serializer for follow-up records"""
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    student_school_id = serializers.CharField(source='student.school_id', read_only=True)
+    symptom_disease = serializers.CharField(source='symptom_record.predicted_disease', read_only=True)
+    is_overdue = serializers.SerializerMethodField()
+    days_until_due = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FollowUp
+        fields = [
+            'id', 'symptom_record', 'student', 'student_name', 'student_school_id',
+            'symptom_disease', 'scheduled_date', 'status', 'response_date',
+            'outcome', 'notes', 'still_experiencing_symptoms', 'new_symptoms',
+            'requires_appointment', 'review_notes', 'is_overdue', 'days_until_due',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'student', 'created_at']
+    
+    def get_is_overdue(self, obj):
+        """Check if follow-up is overdue"""
+        from datetime import date
+        return obj.status == 'pending' and obj.scheduled_date < date.today()
+    
+    def get_days_until_due(self, obj):
+        """Calculate days until due (negative if overdue)"""
+        from datetime import date
+        delta = obj.scheduled_date - date.today()
+        return delta.days
+
+
+class FollowUpResponseSerializer(serializers.Serializer):
+    """Serializer for student follow-up responses"""
+    outcome = serializers.ChoiceField(choices=FollowUp.OUTCOME_CHOICES)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    still_experiencing_symptoms = serializers.BooleanField()
+    new_symptoms = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list
+    )

@@ -76,6 +76,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresStudent: true }
   },
   {
+    path: '/followups',
+    name: 'followups',
+    component: () => import('@/views/FollowUpList.vue'),
+    meta: { requiresAuth: true, requiresStudent: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue')

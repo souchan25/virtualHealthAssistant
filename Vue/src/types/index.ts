@@ -162,6 +162,35 @@ export interface AdherenceStats {
   }>
 }
 
+// Follow-Up Types
+export interface FollowUp {
+  id: string
+  symptom_record: number
+  student: number
+  student_name?: string
+  student_school_id?: string
+  symptom_disease?: string
+  scheduled_date: string
+  status: 'pending' | 'completed' | 'overdue' | 'cancelled'
+  response_date?: string | null
+  outcome?: 'improved' | 'same' | 'worse' | 'resolved' | null
+  notes?: string
+  still_experiencing_symptoms?: boolean | null
+  new_symptoms?: string[]
+  requires_appointment?: boolean
+  review_notes?: string
+  is_overdue?: boolean
+  days_until_due?: number
+  created_at: string
+}
+
+export interface FollowUpResponse {
+  outcome: 'improved' | 'same' | 'worse' | 'resolved'
+  notes?: string
+  still_experiencing_symptoms: boolean
+  new_symptoms?: string[]
+}
+
 // API Response Types
 export interface ApiResponse<T> {
   data: T

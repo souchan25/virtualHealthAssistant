@@ -14,7 +14,7 @@ from django.db.models import Count, Q
 from datetime import timedelta
 import uuid
 
-from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats, EmergencyAlert, Medication, MedicationLog
+from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats, EmergencyAlert, Medication, MedicationLog, FollowUp
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer,
     SymptomRecordSerializer, SymptomSubmissionSerializer,
@@ -23,7 +23,8 @@ from .serializers import (
     ConsentLogSerializer, AuditLogSerializer,
     DepartmentStatsSerializer, DashboardStatsSerializer,
     EmergencyAlertSerializer, EmergencyTriggerSerializer,
-    MedicationSerializer, MedicationCreateSerializer, MedicationLogSerializer
+    MedicationSerializer, MedicationCreateSerializer, MedicationLogSerializer,
+    FollowUpSerializer, FollowUpResponseSerializer
 )
 from .permissions import IsStudent, IsClinicStaff, IsOwnerOrStaff, CanModifyProfile, HasDataConsent
 from .ml_service import get_ml_predictor
@@ -269,12 +270,16 @@ def submit_symptoms(request):
         record.check_referral_criteria()
         record.save()
         
+        # Auto-create follow-up (3 days from now)
+        followup = FollowUp.create_from_symptom(record, days_ahead=3)
+        
         # Prepare response
         response_data = {
             'record_id': str(record.id),
             'prediction': prediction_result,
             'requires_referral': record.requires_referral,
-            'referral_message': 'You have reported symptoms 5+ times in the past 30 days. Please visit the clinic for evaluation.' if record.requires_referral else None
+            'referral_message': 'You have reported symptoms 5+ times in the past 30 days. Please visit the clinic for evaluation.' if record.requires_referral else None,
+            'followup_scheduled': followup.scheduled_date.isoformat()
         }
         
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -1118,3 +1123,139 @@ def medication_adherence(request):
         'overall_adherence_rate': round(overall_rate, 1),
         'medications': stats
     })
+
+
+# ============================================================================
+# Follow-Up Views
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def followup_list(request):
+    """
+    Get follow-ups for current user (students) or all/specific student (staff)
+    GET /api/followups/
+    Query params: status, student_id (staff only)
+    """
+    if request.user.role == 'student':
+        followups = FollowUp.objects.filter(student=request.user)
+    else:
+        # Staff can see all or filter by student
+        student_id = request.GET.get('student_id')
+        if student_id:
+            followups = FollowUp.objects.filter(student__school_id=student_id)
+        else:
+            followups = FollowUp.objects.all()
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        followups = followups.filter(status=status_filter)
+    
+    # Auto-check and update overdue status
+    for followup in followups:
+        followup.check_overdue()
+    
+    serializer = FollowUpSerializer(followups, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def followup_pending(request):
+    """
+    Get pending follow-ups (including overdue) for current user
+    GET /api/followups/pending/
+    """
+    followups = FollowUp.objects.filter(
+        student=request.user,
+        status__in=['pending', 'overdue']
+    ).order_by('scheduled_date')
+    
+    # Check for overdue
+    for followup in followups:
+        followup.check_overdue()
+    
+    serializer = FollowUpSerializer(followups, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsStudent])
+def followup_respond(request, pk):
+    """
+    Submit response to follow-up
+    POST /api/followups/<id>/respond/
+    """
+    try:
+        followup = FollowUp.objects.get(pk=pk, student=request.user)
+    except FollowUp.DoesNotExist:
+        return Response({'error': 'Follow-up not found'}, status=404)
+    
+    if followup.status == 'completed':
+        return Response({'error': 'Follow-up already completed'}, status=400)
+    
+    serializer = FollowUpResponseSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
+    
+    # Update follow-up with response
+    followup.outcome = serializer.validated_data['outcome']
+    followup.notes = serializer.validated_data.get('notes', '')
+    followup.still_experiencing_symptoms = serializer.validated_data['still_experiencing_symptoms']
+    followup.new_symptoms = serializer.validated_data.get('new_symptoms', [])
+    followup.response_date = timezone.now()
+    followup.status = 'completed'
+    followup.save()
+    
+    # Auto-flag for appointment if condition worsened
+    if followup.outcome == 'worse':
+        followup.requires_appointment = True
+        followup.save()
+    
+    return Response({
+        'message': 'Follow-up response submitted',
+        'followup': FollowUpSerializer(followup).data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsClinicStaff])
+def followup_review(request, pk):
+    """
+    Staff review of follow-up response
+    POST /api/followups/<id>/review/
+    """
+    try:
+        followup = FollowUp.objects.get(pk=pk)
+    except FollowUp.DoesNotExist:
+        return Response({'error': 'Follow-up not found'}, status=404)
+    
+    review_notes = request.data.get('review_notes', '')
+    requires_appointment = request.data.get('requires_appointment', False)
+    
+    followup.reviewed_by = request.user
+    followup.review_notes = review_notes
+    followup.requires_appointment = requires_appointment
+    followup.save()
+    
+    return Response({
+        'message': 'Follow-up reviewed',
+        'followup': FollowUpSerializer(followup).data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsClinicStaff])
+def followup_needs_review(request):
+    """
+    Get follow-ups that need staff review
+    GET /api/followups/needs-review/
+    """
+    followups = FollowUp.objects.filter(
+        status='completed',
+        reviewed_by__isnull=True
+    ).order_by('-response_date')
+    
+    serializer = FollowUpSerializer(followups, many=True)
+    return Response(serializer.data)

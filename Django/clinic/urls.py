@@ -58,6 +58,13 @@ urlpatterns = [
     path('medications/logs/<uuid:log_id>/taken/', views.medication_log_mark_taken, name='medication-log-taken'),
     path('medications/adherence/', views.medication_adherence, name='medication-adherence'),
     
+    # Follow-Up endpoints
+    path('followups/', views.followup_list, name='followup-list'),
+    path('followups/pending/', views.followup_pending, name='followup-pending'),
+    path('followups/<uuid:pk>/respond/', views.followup_respond, name='followup-respond'),
+    path('followups/<uuid:pk>/review/', views.followup_review, name='followup-review'),
+    path('followups/needs-review/', views.followup_needs_review, name='followup-needs-review'),
+    
     # Router URLs (viewsets)
     path('', include(router.urls)),
 ]
