@@ -445,3 +445,106 @@ class DepartmentStats(models.Model):
     
     def __str__(self):
         return f"{self.department} Stats (Updated: {self.last_updated.date()})"
+
+
+class EmergencyAlert(models.Model):
+    """
+    Emergency SOS alerts from students
+    Critical for campus safety - immediate staff notification
+    """
+    
+    STATUS_CHOICES = [
+        ('active', 'Active - Needs Response'),
+        ('responding', 'Staff Responding'),
+        ('resolved', 'Resolved'),
+        ('false_alarm', 'False Alarm'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='emergency_alerts',
+        limit_choices_to={'role': 'student'}
+    )
+    
+    # Emergency details
+    location = models.CharField(
+        max_length=255,
+        help_text='Building/room where emergency occurred'
+    )
+    symptoms = models.JSONField(
+        default=list,
+        help_text='Emergency symptoms if any'
+    )
+    description = models.TextField(
+        blank=True,
+        help_text='Additional details from student'
+    )
+    
+    # Status tracking
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    priority = models.IntegerField(
+        default=100,
+        help_text='Priority score (100 = critical)'
+    )
+    
+    # Response tracking
+    responded_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='emergency_responses',
+        limit_choices_to={'role': 'staff'}
+    )
+    response_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When staff first responded'
+    )
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+    resolution_notes = models.TextField(
+        blank=True,
+        help_text='Staff notes on resolution'
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'emergency_alerts'
+        verbose_name = 'Emergency Alert'
+        verbose_name_plural = 'Emergency Alerts'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['student', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"Emergency: {self.student.name} at {self.location} ({self.get_status_display()})"
+    
+    def resolve(self, staff_user, notes=''):
+        """Mark emergency as resolved"""
+        self.status = 'resolved'
+        self.resolved_at = timezone.now()
+        self.responded_by = staff_user
+        self.resolution_notes = notes
+        self.save()
+    
+    @property
+    def response_time_minutes(self):
+        """Calculate response time in minutes"""
+        if self.response_time:
+            delta = self.response_time - self.created_at
+            return int(delta.total_seconds() / 60)
+        return None

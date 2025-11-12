@@ -5,7 +5,10 @@ Handles data validation and transformation
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats
+from .models import (
+    SymptomRecord, HealthInsight, ChatSession, 
+    ConsentLog, AuditLog, DepartmentStats, EmergencyAlert
+)
 
 User = get_user_model()
 
@@ -170,3 +173,38 @@ class DashboardStatsSerializer(serializers.Serializer):
     department_breakdown = DepartmentStatsSerializer(many=True)
     recent_symptoms = SymptomRecordSerializer(many=True)
     pending_referrals = serializers.IntegerField()
+
+
+class EmergencyAlertSerializer(serializers.ModelSerializer):
+    """Serializer for emergency alerts"""
+    student_school_id = serializers.CharField(source='student.school_id', read_only=True)
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    student_department = serializers.CharField(source='student.department', read_only=True)
+    responded_by_name = serializers.CharField(source='responded_by.name', read_only=True, allow_null=True)
+    response_time_minutes = serializers.IntegerField(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = EmergencyAlert
+        fields = [
+            'id', 'student_school_id', 'student_name', 'student_department',
+            'location', 'symptoms', 'description', 'status', 'status_display',
+            'priority', 'responded_by_name', 'response_time', 'response_time_minutes',
+            'resolved_at', 'resolution_notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'response_time_minutes']
+
+
+class EmergencyTriggerSerializer(serializers.Serializer):
+    """Serializer for triggering emergency alert"""
+    location = serializers.CharField(max_length=255, required=True)
+    symptoms = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list
+    )
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default=''
+    )

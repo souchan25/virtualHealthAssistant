@@ -14,14 +14,15 @@ from django.db.models import Count, Q
 from datetime import timedelta
 import uuid
 
-from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats
+from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats, EmergencyAlert
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer,
     SymptomRecordSerializer, SymptomSubmissionSerializer,
     DiseasePredictionSerializer, HealthInsightSerializer,
     ChatSessionSerializer, ChatMessageSerializer,
     ConsentLogSerializer, AuditLogSerializer,
-    DepartmentStatsSerializer, DashboardStatsSerializer
+    DepartmentStatsSerializer, DashboardStatsSerializer,
+    EmergencyAlertSerializer, EmergencyTriggerSerializer
 )
 from .permissions import IsStudent, IsClinicStaff, IsOwnerOrStaff, CanModifyProfile, HasDataConsent
 from .ml_service import get_ml_predictor
@@ -666,3 +667,194 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(timestamp__gte=start_date)
         
         return queryset
+
+
+# ============================================================================
+# Emergency SOS System
+# ============================================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def trigger_emergency(request):
+    """
+    Trigger emergency SOS alert
+    POST /api/emergency/trigger/
+    
+    Immediately notifies all clinic staff
+    """
+    serializer = EmergencyTriggerSerializer(data=request.data)
+    
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Create emergency alert
+    emergency = EmergencyAlert.objects.create(
+        student=request.user,
+        location=serializer.validated_data['location'],
+        symptoms=serializer.validated_data.get('symptoms', []),
+        description=serializer.validated_data.get('description', ''),
+        status='active',
+        priority=100  # All emergencies are critical
+    )
+    
+    # Log the emergency
+    AuditLog.objects.create(
+        user=request.user,
+        action='emergency_triggered',
+        details={
+            'emergency_id': str(emergency.id),
+            'location': emergency.location,
+            'symptoms_count': len(emergency.symptoms)
+        }
+    )
+    
+    # TODO: Send real-time notifications to staff
+    # This will be implemented with WebSockets or push notifications
+    # For now, staff can poll /api/emergency/active/
+    
+    return Response({
+        'status': 'emergency_triggered',
+        'message': 'Help is on the way! Stay where you are.',
+        'emergency_id': emergency.id,
+        'emergency': EmergencyAlertSerializer(emergency).data
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def emergency_active(request):
+    """
+    Get active emergencies
+    GET /api/emergency/active/
+    
+    Students: See their own active emergencies
+    Staff: See all active emergencies
+    """
+    if request.user.role == 'staff':
+        # Staff can see all active emergencies
+        emergencies = EmergencyAlert.objects.filter(
+            status__in=['active', 'responding']
+        ).select_related('student', 'responded_by')
+    else:
+        # Students see only their own
+        emergencies = EmergencyAlert.objects.filter(
+            student=request.user,
+            status__in=['active', 'responding']
+        )
+    
+    serializer = EmergencyAlertSerializer(emergencies, many=True)
+    return Response({
+        'count': emergencies.count(),
+        'emergencies': serializer.data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def emergency_history(request):
+    """
+    Get emergency history
+    GET /api/emergency/history/
+    
+    Students: Their own history
+    Staff: All emergencies
+    """
+    if request.user.role == 'staff':
+        emergencies = EmergencyAlert.objects.all().select_related('student', 'responded_by')
+    else:
+        emergencies = EmergencyAlert.objects.filter(student=request.user)
+    
+    # Pagination
+    page_size = int(request.GET.get('page_size', 20))
+    emergencies = emergencies[:page_size]
+    
+    serializer = EmergencyAlertSerializer(emergencies, many=True)
+    return Response({
+        'count': emergencies.count(),
+        'emergencies': serializer.data
+    })
+
+
+@api_view(['PATCH'])
+@permission_classes([IsClinicStaff])
+def emergency_respond(request, emergency_id):
+    """
+    Staff responds to emergency
+    PATCH /api/emergency/<id>/respond/
+    """
+    try:
+        emergency = EmergencyAlert.objects.get(id=emergency_id)
+    except EmergencyAlert.DoesNotExist:
+        return Response({'error': 'Emergency not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Update status to responding if not already
+    if emergency.status == 'active':
+        emergency.status = 'responding'
+        emergency.responded_by = request.user
+        emergency.response_time = timezone.now()
+        emergency.save()
+        
+        # Log response
+        AuditLog.objects.create(
+            user=request.user,
+            action='emergency_responded',
+            details={
+                'emergency_id': str(emergency.id),
+                'student': emergency.student.school_id,
+                'response_time_minutes': emergency.response_time_minutes
+            }
+        )
+    
+    serializer = EmergencyAlertSerializer(emergency)
+    return Response({
+        'message': 'Emergency status updated to responding',
+        'emergency': serializer.data
+    })
+
+
+@api_view(['PATCH'])
+@permission_classes([IsClinicStaff])
+def emergency_resolve(request, emergency_id):
+    """
+    Staff resolves emergency
+    PATCH /api/emergency/<id>/resolve/
+    """
+    try:
+        emergency = EmergencyAlert.objects.get(id=emergency_id)
+    except EmergencyAlert.DoesNotExist:
+        return Response({'error': 'Emergency not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    resolution_notes = request.data.get('notes', '')
+    is_false_alarm = request.data.get('false_alarm', False)
+    
+    if is_false_alarm:
+        emergency.status = 'false_alarm'
+    else:
+        emergency.status = 'resolved'
+    
+    emergency.resolved_at = timezone.now()
+    emergency.resolution_notes = resolution_notes
+    emergency.responded_by = request.user
+    
+    if not emergency.response_time:
+        emergency.response_time = timezone.now()
+    
+    emergency.save()
+    
+    # Log resolution
+    AuditLog.objects.create(
+        user=request.user,
+        action='emergency_resolved',
+        details={
+            'emergency_id': str(emergency.id),
+            'student': emergency.student.school_id,
+            'resolution': emergency.status,
+            'response_time_minutes': emergency.response_time_minutes
+        }
+    )
+    
+    serializer = EmergencyAlertSerializer(emergency)
+    return Response({
+        'message': f'Emergency {emergency.get_status_display()}',
+        'emergency': serializer.data
+    })

@@ -42,6 +42,13 @@ urlpatterns = [
     path('staff/students/', views.student_directory, name='students'),
     path('staff/export/', views.export_report, name='export'),
     
+    # Emergency SOS endpoints
+    path('emergency/trigger/', views.trigger_emergency, name='emergency-trigger'),
+    path('emergency/active/', views.emergency_active, name='emergency-active'),
+    path('emergency/history/', views.emergency_history, name='emergency-history'),
+    path('emergency/<uuid:emergency_id>/respond/', views.emergency_respond, name='emergency-respond'),
+    path('emergency/<uuid:emergency_id>/resolve/', views.emergency_resolve, name='emergency-resolve'),
+    
     # Router URLs (viewsets)
     path('', include(router.urls)),
 ]
