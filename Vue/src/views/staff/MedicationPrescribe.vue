@@ -4,9 +4,12 @@
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
       <div class="container mx-auto px-6 py-4">
         <div class="flex justify-between items-center mb-4">
-          <div>
-            <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Clinic</h1>
-            <p class="text-sm text-gray-600">Medication Prescription</p>
+          <div class="flex items-center space-x-4">
+            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-14 w-14 object-contain">
+            <div>
+              <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Clinic</h1>
+              <p class="text-sm text-gray-600">Medication Prescription</p>
+            </div>
           </div>
           <button @click="$router.push('/staff')" class="btn-outline !py-2 !px-4">Back to Dashboard</button>
         </div>

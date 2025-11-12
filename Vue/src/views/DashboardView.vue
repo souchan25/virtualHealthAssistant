@@ -4,9 +4,12 @@
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
       <div class="container mx-auto px-6 py-4">
         <div class="flex justify-between items-center">
-          <div>
-            <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Assistant</h1>
-            <p class="text-sm text-gray-600">Welcome, {{ authStore.userName }}</p>
+          <div class="flex items-center space-x-4">
+            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-12 w-12 object-contain">
+            <div>
+              <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Assistant</h1>
+              <p class="text-sm text-gray-600">Welcome, {{ authStore.userName }}</p>
+            </div>
           </div>
           <div class="flex items-center space-x-4">
             <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>

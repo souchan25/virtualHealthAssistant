@@ -3,9 +3,12 @@
     <!-- Header Navigation -->
     <nav class="container mx-auto px-6 py-6">
       <div class="flex justify-between items-center">
-        <router-link to="/" class="text-white">
-          <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
-          <p class="text-sm text-cpsu-yellow">Mighty Hornbills</p>
+        <router-link to="/" class="flex items-center space-x-4 text-white">
+          <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-16 w-16 object-contain">
+          <div>
+            <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+            <p class="text-sm text-cpsu-yellow">Mighty Hornbills</p>
+          </div>
         </router-link>
         <div class="space-x-4">
           <router-link to="/register" class="bg-white text-cpsu-green font-semibold px-6 py-2.5 rounded-lg hover:bg-gray-100 transition-colors duration-200">Register</router-link>
