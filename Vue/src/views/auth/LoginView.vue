@@ -4,7 +4,7 @@
     <nav class="container mx-auto px-6 py-6">
       <div class="flex justify-between items-center">
         <router-link to="/" class="flex items-center space-x-4 text-white">
-          <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-20 w-20 object-contain">
+          <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-24 w-24 object-contain">
           <div>
             <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
             <p class="text-sm text-cpsu-yellow">Mighty Hornbills</p>
