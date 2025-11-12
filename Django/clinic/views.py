@@ -553,19 +553,41 @@ def clinic_dashboard(request):
         referral_triggered=False
     ).count()
     
-    # Department breakdown
-    dept_stats = DepartmentStats.objects.all().order_by('-students_with_symptoms')
+    # Department breakdown - Calculate from real data
+    departments = User.objects.filter(role='student').values_list('department', flat=True).distinct()
+    dept_breakdown = []
+    
+    for dept in departments:
+        if not dept:  # Skip None/empty departments
+            continue
+            
+        total_in_dept = User.objects.filter(role='student', department=dept).count()
+        students_with_symptoms = SymptomRecord.objects.filter(
+            student__department=dept,
+            created_at__date__gte=thirty_days_ago
+        ).values('student').distinct().count()
+        
+        dept_breakdown.append({
+            'department': dept,
+            'total_students': total_in_dept,
+            'students_with_symptoms': students_with_symptoms,
+            'percentage': round((students_with_symptoms / total_in_dept * 100), 1) if total_in_dept > 0 else 0
+        })
+    
+    # Sort by students with symptoms (descending)
+    dept_breakdown.sort(key=lambda x: x['students_with_symptoms'], reverse=True)
     
     # Recent symptom records
     recent_symptoms = SymptomRecord.objects.select_related('student').order_by('-created_at')[:10]
     
-    # Top insight (most common disease)
-    top_disease = SymptomRecord.objects.values('predicted_disease')\
-        .annotate(count=Count('id'))\
-        .order_by('-count')\
-        .first()
+    # Top insight (most common disease in last 30 days)
+    top_disease = SymptomRecord.objects.filter(
+        created_at__date__gte=thirty_days_ago
+    ).values('predicted_disease').annotate(
+        count=Count('id')
+    ).order_by('-count').first()
     
-    top_insight = f"{top_disease['predicted_disease']} ({top_disease['count']} cases)" if top_disease else ''
+    top_insight = f"{top_disease['predicted_disease']} ({top_disease['count']} cases this month)" if top_disease else 'No consultations yet'
     
     # Prepare response
     data = {
@@ -574,7 +596,7 @@ def clinic_dashboard(request):
         'students_with_symptoms_7days': students_7days,
         'students_with_symptoms_30days': students_30days,
         'top_insight': top_insight,
-        'department_breakdown': DepartmentStatsSerializer(dept_stats, many=True).data,
+        'department_breakdown': dept_breakdown,
         'recent_symptoms': SymptomRecordSerializer(recent_symptoms, many=True).data,
         'pending_referrals': pending_referrals
     }
