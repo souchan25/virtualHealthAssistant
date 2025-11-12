@@ -215,7 +215,8 @@ const adherenceColorClass = computed(() => {
 })
 
 // Methods
-const formatTime = (timeStr: string) => {
+const formatTime = (timeStr: string | undefined) => {
+  if (!timeStr) return 'N/A'
   const [hours, minutes] = timeStr.split(':')
   const hour = parseInt(hours)
   const ampm = hour >= 12 ? 'PM' : 'AM'

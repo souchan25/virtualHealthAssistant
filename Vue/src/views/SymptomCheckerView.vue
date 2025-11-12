@@ -1,4 +1,4 @@
-<template>
+c<template>
   <div class="min-h-screen bg-gray-50">
     <!-- Navigation Header -->
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">

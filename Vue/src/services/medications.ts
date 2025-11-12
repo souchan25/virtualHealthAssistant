@@ -10,7 +10,8 @@ export const medicationService = {
   // Get all medications for current user
   async getMedications(): Promise<Medication[]> {
     const response = await api.get('/medications/')
-    return response.data
+    // Ensure we always return an array
+    return Array.isArray(response.data) ? response.data : []
   },
 
   // Get medications for specific student (staff only)
@@ -18,7 +19,8 @@ export const medicationService = {
     const response = await api.get('/medications/', {
       params: { student_id: studentId }
     })
-    return response.data
+    // Ensure we always return an array
+    return Array.isArray(response.data) ? response.data : []
   },
 
   // Get single medication
@@ -42,7 +44,8 @@ export const medicationService = {
   // Get today's medication logs
   async getTodaysLogs(): Promise<MedicationLog[]> {
     const response = await api.get('/medications/logs/today/')
-    return response.data
+    // Ensure we always return an array
+    return Array.isArray(response.data) ? response.data : []
   },
 
   // Mark medication log as taken

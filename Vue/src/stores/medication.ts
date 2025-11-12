@@ -20,20 +20,38 @@ export const useMedicationStore = defineStore('medication', {
   }),
 
   getters: {
-    activeMedications: (state) => state.medications.filter(m => m.is_active),
+    activeMedications: (state) => {
+      if (!Array.isArray(state.medications)) return []
+      return state.medications.filter(m => m.is_active)
+    },
     
-    inactiveMedications: (state) => state.medications.filter(m => !m.is_active),
+    inactiveMedications: (state) => {
+      if (!Array.isArray(state.medications)) return []
+      return state.medications.filter(m => !m.is_active)
+    },
     
-    pendingLogs: (state) => state.todaysLogs.filter(log => log.status === 'pending'),
+    pendingLogs: (state) => {
+      if (!Array.isArray(state.todaysLogs)) return []
+      return state.todaysLogs.filter(log => log.status === 'pending')
+    },
     
-    takenLogs: (state) => state.todaysLogs.filter(log => log.status === 'taken'),
+    takenLogs: (state) => {
+      if (!Array.isArray(state.todaysLogs)) return []
+      return state.todaysLogs.filter(log => log.status === 'taken')
+    },
     
-    missedLogs: (state) => state.todaysLogs.filter(log => log.status === 'missed'),
+    missedLogs: (state) => {
+      if (!Array.isArray(state.todaysLogs)) return []
+      return state.todaysLogs.filter(log => log.status === 'missed')
+    },
     
-    overdueLogs: (state) => state.todaysLogs.filter(log => log.is_overdue && log.status === 'pending'),
+    overdueLogs: (state) => {
+      if (!Array.isArray(state.todaysLogs)) return []
+      return state.todaysLogs.filter(log => log.is_overdue && log.status === 'pending')
+    },
     
     todaysAdherence: (state) => {
-      if (state.todaysLogs.length === 0) return 100
+      if (!Array.isArray(state.todaysLogs) || state.todaysLogs.length === 0) return 100
       const taken = state.todaysLogs.filter(log => log.status === 'taken').length
       return Math.round((taken / state.todaysLogs.length) * 100)
     }

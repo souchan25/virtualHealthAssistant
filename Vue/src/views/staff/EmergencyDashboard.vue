@@ -1,18 +1,51 @@
 <template>
-  <div class="container mx-auto px-6 py-8">
-    <!-- Back Button -->
-    <router-link to="/staff" class="inline-flex items-center text-cpsu-green hover:text-green-700 mb-6">
-      <span class="text-2xl mr-2">←</span>
-      <span class="font-semibold">Back to Staff Dashboard</span>
-    </router-link>
+  <div class="min-h-screen bg-gray-50">
+    <!-- Navigation Header -->
+    <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
+      <div class="container mx-auto px-6 py-4">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Clinic</h1>
+            <p class="text-sm text-gray-600">Emergency Management</p>
+          </div>
+          <button @click="$router.push('/staff')" class="btn-outline !py-2 !px-4">Back to Dashboard</button>
+        </div>
+        <!-- Navigation Menu -->
+        <div class="flex items-center space-x-4 border-t pt-3">
+          <router-link to="/staff" class="text-gray-700 hover:text-cpsu-green font-medium">
+            📊 Dashboard
+          </router-link>
+          <router-link to="/staff/emergencies" class="text-cpsu-green font-semibold">
+            🚨 Emergencies
+          </router-link>
+          <router-link to="/staff/students" class="text-gray-700 hover:text-cpsu-green font-medium">
+            👥 Students
+          </router-link>
+          <router-link to="/staff/prescribe" class="text-gray-700 hover:text-cpsu-green font-medium">
+            💊 Prescribe
+          </router-link>
+          <router-link to="/staff/adherence" class="text-gray-700 hover:text-cpsu-green font-medium">
+            📈 Adherence
+          </router-link>
+          <router-link to="/staff/followups" class="text-gray-700 hover:text-cpsu-green font-medium">
+            📋 Follow-Ups
+          </router-link>
+          <router-link to="/staff/analytics" class="text-gray-700 hover:text-cpsu-green font-medium">
+            📉 Analytics
+          </router-link>
+        </div>
+      </div>
+    </nav>
 
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
-        <span class="text-4xl">🚨</span>
-        Emergency Alerts Dashboard
-      </h1>
-      <p class="text-gray-600 mt-2">Monitor and respond to student emergencies</p>
-    </div>
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+      <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <span class="text-4xl">🚨</span>
+          Emergency Alerts Dashboard
+        </h2>
+        <p class="text-gray-600 mt-2">Monitor and respond to student emergencies</p>
+      </div>
 
     <!-- Active Emergencies (Critical!) -->
     <div v-if="activeEmergencies.length > 0" class="mb-8">
@@ -163,6 +196,7 @@
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>

@@ -3,15 +3,36 @@
     <!-- Navigation -->
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
       <div class="container mx-auto px-6 py-4">
-        <div class="flex justify-between items-center">
+        <div class="flex justify-between items-center mb-4">
           <div>
             <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Clinic</h1>
-            <p class="text-sm text-gray-600">Staff Dashboard</p>
+            <p class="text-sm text-gray-600">Staff Dashboard - {{ authStore.user?.name }}</p>
           </div>
-          <div class="flex items-center space-x-4">
-            <span class="text-gray-700">{{ authStore.user?.name }}</span>
-            <button @click="handleLogout" class="btn-outline !py-2 !px-4">Logout</button>
-          </div>
+          <button @click="handleLogout" class="btn-outline !py-2 !px-4">Logout</button>
+        </div>
+        <!-- Navigation Menu -->
+        <div class="flex items-center space-x-4 border-t pt-3">
+          <router-link to="/staff" class="text-gray-700 hover:text-cpsu-green font-medium">
+            📊 Dashboard
+          </router-link>
+          <router-link to="/staff/emergencies" class="text-gray-700 hover:text-cpsu-green font-medium">
+            🚨 Emergencies
+          </router-link>
+          <router-link to="/staff/students" class="text-gray-700 hover:text-cpsu-green font-medium">
+            👥 Students
+          </router-link>
+          <router-link to="/staff/prescribe" class="text-gray-700 hover:text-cpsu-green font-medium">
+            💊 Prescribe
+          </router-link>
+          <router-link to="/staff/adherence" class="text-gray-700 hover:text-cpsu-green font-medium">
+            📈 Adherence
+          </router-link>
+          <router-link to="/staff/followups" class="text-gray-700 hover:text-cpsu-green font-medium">
+            📋 Follow-Ups
+          </router-link>
+          <router-link to="/staff/analytics" class="text-gray-700 hover:text-cpsu-green font-medium">
+            📉 Analytics
+          </router-link>
         </div>
       </div>
     </nav>
