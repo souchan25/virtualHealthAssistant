@@ -82,6 +82,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresStudent: true }
   },
   {
+    path: '/health-dashboard',
+    name: 'health-dashboard',
+    component: () => import('@/views/HealthDashboard.vue'),
+    meta: { requiresAuth: true, requiresStudent: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue')
