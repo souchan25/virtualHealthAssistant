@@ -4,13 +4,19 @@
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
       <div class="container mx-auto px-6 py-4">
         <div class="flex justify-between items-center">
-          <div>
-            <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Assistant</h1>
-            <p class="text-sm text-gray-600">Welcome, {{ authStore.userName }}</p>
+          <div class="flex items-center space-x-4">
+            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-12 w-12 object-contain">
+            <div>
+              <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Assistant</h1>
+              <p class="text-sm text-gray-600">Welcome, {{ authStore.userName }}</p>
+            </div>
           </div>
           <div class="flex items-center space-x-4">
             <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
             <router-link to="/symptom-checker" class="text-gray-700 hover:text-cpsu-green">Check Symptoms</router-link>
+            <router-link to="/medications" class="text-gray-700 hover:text-cpsu-green">Medications</router-link>
+            <router-link to="/followups" class="text-gray-700 hover:text-cpsu-green">Follow-Ups</router-link>
+            <router-link to="/health-dashboard" class="text-gray-700 hover:text-cpsu-green">Analytics</router-link>
             <router-link to="/chat" class="text-gray-700 hover:text-cpsu-green">Chat</router-link>
             <router-link to="/history" class="text-gray-700 hover:text-cpsu-green">History</router-link>
             <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green">Profile</router-link>
@@ -35,14 +41,32 @@
           <p class="text-gray-600">Get AI-powered disease predictions</p>
         </router-link>
 
+        <router-link to="/medications" class="card-bordered hover:shadow-xl transition-shadow">
+          <div class="text-4xl mb-4">💊</div>
+          <h3 class="text-xl font-bold text-cpsu-green mb-2">My Medications</h3>
+          <p class="text-gray-600">Track prescriptions and adherence</p>
+        </router-link>
+
+        <router-link to="/followups" class="card-bordered hover:shadow-xl transition-shadow">
+          <div class="text-4xl mb-4">📋</div>
+          <h3 class="text-xl font-bold text-cpsu-green mb-2">Follow-Ups</h3>
+          <p class="text-gray-600">Respond to health check-ins</p>
+        </router-link>
+
+        <router-link to="/health-dashboard" class="card-bordered hover:shadow-xl transition-shadow">
+          <div class="text-4xl mb-4">�</div>
+          <h3 class="text-xl font-bold text-cpsu-green mb-2">Health Analytics</h3>
+          <p class="text-gray-600">View your health progress trends</p>
+        </router-link>
+
         <router-link to="/chat" class="card-bordered hover:shadow-xl transition-shadow">
-          <div class="text-4xl mb-4">💬</div>
+          <div class="text-4xl mb-4">�💬</div>
           <h3 class="text-xl font-bold text-cpsu-green mb-2">Chat Assistant</h3>
           <p class="text-gray-600">Talk to our health chatbot</p>
         </router-link>
 
         <router-link to="/history" class="card-bordered hover:shadow-xl transition-shadow">
-          <div class="text-4xl mb-4">📊</div>
+          <div class="text-4xl mb-4">�</div>
           <h3 class="text-xl font-bold text-cpsu-green mb-2">View History</h3>
           <p class="text-gray-600">See your past consultations</p>
         </router-link>

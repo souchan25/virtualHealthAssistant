@@ -40,7 +40,31 @@ urlpatterns = [
     # Clinic staff endpoints
     path('staff/dashboard/', views.clinic_dashboard, name='dashboard'),
     path('staff/students/', views.student_directory, name='students'),
+    path('staff/analytics/', views.staff_analytics, name='analytics'),
     path('staff/export/', views.export_report, name='export'),
+    
+    # Emergency SOS endpoints
+    path('emergency/trigger/', views.trigger_emergency, name='emergency-trigger'),
+    path('emergency/active/', views.emergency_active, name='emergency-active'),
+    path('emergency/history/', views.emergency_history, name='emergency-history'),
+    path('emergency/<uuid:emergency_id>/respond/', views.emergency_respond, name='emergency-respond'),
+    path('emergency/<uuid:emergency_id>/resolve/', views.emergency_resolve, name='emergency-resolve'),
+    
+    # Medication Management endpoints
+    path('medications/', views.medication_list, name='medication-list'),
+    path('medications/create/', views.medication_create, name='medication-create'),
+    path('medications/<uuid:medication_id>/', views.medication_detail, name='medication-detail'),
+    path('medications/<uuid:medication_id>/update/', views.medication_update, name='medication-update'),
+    path('medications/logs/today/', views.medication_logs_today, name='medication-logs-today'),
+    path('medications/logs/<uuid:log_id>/taken/', views.medication_log_mark_taken, name='medication-log-taken'),
+    path('medications/adherence/', views.medication_adherence, name='medication-adherence'),
+    
+    # Follow-Up endpoints
+    path('followups/', views.followup_list, name='followup-list'),
+    path('followups/pending/', views.followup_pending, name='followup-pending'),
+    path('followups/<uuid:pk>/respond/', views.followup_respond, name='followup-respond'),
+    path('followups/<uuid:pk>/review/', views.followup_review, name='followup-review'),
+    path('followups/needs-review/', views.followup_needs_review, name='followup-needs-review'),
     
     # Router URLs (viewsets)
     path('', include(router.urls)),

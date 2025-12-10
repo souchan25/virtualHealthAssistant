@@ -14,14 +14,17 @@ from django.db.models import Count, Q
 from datetime import timedelta
 import uuid
 
-from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats
+from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats, EmergencyAlert, Medication, MedicationLog, FollowUp
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer,
     SymptomRecordSerializer, SymptomSubmissionSerializer,
     DiseasePredictionSerializer, HealthInsightSerializer,
     ChatSessionSerializer, ChatMessageSerializer,
     ConsentLogSerializer, AuditLogSerializer,
-    DepartmentStatsSerializer, DashboardStatsSerializer
+    DepartmentStatsSerializer, DashboardStatsSerializer,
+    EmergencyAlertSerializer, EmergencyTriggerSerializer,
+    MedicationSerializer, MedicationCreateSerializer, MedicationLogSerializer,
+    FollowUpSerializer, FollowUpResponseSerializer
 )
 from .permissions import IsStudent, IsClinicStaff, IsOwnerOrStaff, CanModifyProfile, HasDataConsent
 from .ml_service import get_ml_predictor
@@ -267,12 +270,16 @@ def submit_symptoms(request):
         record.check_referral_criteria()
         record.save()
         
+        # Auto-create follow-up (3 days from now)
+        followup = FollowUp.create_from_symptom(record, days_ahead=3)
+        
         # Prepare response
         response_data = {
             'record_id': str(record.id),
             'prediction': prediction_result,
             'requires_referral': record.requires_referral,
-            'referral_message': 'You have reported symptoms 5+ times in the past 30 days. Please visit the clinic for evaluation.' if record.requires_referral else None
+            'referral_message': 'You have reported symptoms 5+ times in the past 30 days. Please visit the clinic for evaluation.' if record.requires_referral else None,
+            'followup_scheduled': followup.scheduled_date.isoformat()
         }
         
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -546,19 +553,41 @@ def clinic_dashboard(request):
         referral_triggered=False
     ).count()
     
-    # Department breakdown
-    dept_stats = DepartmentStats.objects.all().order_by('-students_with_symptoms')
+    # Department breakdown - Calculate from real data
+    departments = User.objects.filter(role='student').values_list('department', flat=True).distinct()
+    dept_breakdown = []
+    
+    for dept in departments:
+        if not dept:  # Skip None/empty departments
+            continue
+            
+        total_in_dept = User.objects.filter(role='student', department=dept).count()
+        students_with_symptoms = SymptomRecord.objects.filter(
+            student__department=dept,
+            created_at__date__gte=thirty_days_ago
+        ).values('student').distinct().count()
+        
+        dept_breakdown.append({
+            'department': dept,
+            'total_students': total_in_dept,
+            'students_with_symptoms': students_with_symptoms,
+            'percentage': round((students_with_symptoms / total_in_dept * 100), 1) if total_in_dept > 0 else 0
+        })
+    
+    # Sort by students with symptoms (descending)
+    dept_breakdown.sort(key=lambda x: x['students_with_symptoms'], reverse=True)
     
     # Recent symptom records
     recent_symptoms = SymptomRecord.objects.select_related('student').order_by('-created_at')[:10]
     
-    # Top insight (most common disease)
-    top_disease = SymptomRecord.objects.values('predicted_disease')\
-        .annotate(count=Count('id'))\
-        .order_by('-count')\
-        .first()
+    # Top insight (most common disease in last 30 days)
+    top_disease = SymptomRecord.objects.filter(
+        created_at__date__gte=thirty_days_ago
+    ).values('predicted_disease').annotate(
+        count=Count('id')
+    ).order_by('-count').first()
     
-    top_insight = f"{top_disease['predicted_disease']} ({top_disease['count']} cases)" if top_disease else ''
+    top_insight = f"{top_disease['predicted_disease']} ({top_disease['count']} cases this month)" if top_disease else 'No consultations yet'
     
     # Prepare response
     data = {
@@ -567,7 +596,7 @@ def clinic_dashboard(request):
         'students_with_symptoms_7days': students_7days,
         'students_with_symptoms_30days': students_30days,
         'top_insight': top_insight,
-        'department_breakdown': DepartmentStatsSerializer(dept_stats, many=True).data,
+        'department_breakdown': dept_breakdown,
         'recent_symptoms': SymptomRecordSerializer(recent_symptoms, many=True).data,
         'pending_referrals': pending_referrals
     }
@@ -582,7 +611,13 @@ def student_directory(request):
     Get filtered list of students with health records
     GET /api/staff/students/
     """
-    queryset = User.objects.filter(role='student').prefetch_related('symptom_records')
+    from django.db.models import Prefetch, Avg
+    
+    queryset = User.objects.filter(role='student').prefetch_related(
+        'symptom_records',
+        'medications',
+        'follow_ups'
+    )
     
     # Filters
     department = request.query_params.get('department')
@@ -600,8 +635,44 @@ def student_directory(request):
     if has_symptoms == 'true':
         queryset = queryset.filter(symptom_records__isnull=False).distinct()
     
-    serializer = UserProfileSerializer(queryset, many=True)
-    return Response(serializer.data)
+    # Build enriched student data
+    students_data = []
+    for student in queryset:
+        # Get symptom records
+        recent_symptoms = student.symptom_records.order_by('-created_at')[:5]
+        last_visit = recent_symptoms.first().created_at if recent_symptoms.exists() else None
+        
+        # Get medications
+        active_meds = student.medications.filter(is_active=True)
+        
+        # Calculate adherence
+        med_logs = MedicationLog.objects.filter(medication__student=student)
+        total_logs = med_logs.count()
+        taken_logs = med_logs.filter(status='taken').count()
+        adherence_rate = round((taken_logs / total_logs * 100) if total_logs > 0 else 100, 1)
+        
+        # Get follow-ups
+        pending_followups = student.follow_ups.filter(status='pending').exists()
+        
+        student_data = {
+            'id': student.id,
+            'name': student.name,
+            'school_id': student.school_id,
+            'department': student.department,
+            'total_visits': student.symptom_records.count(),
+            'last_visit': last_visit.isoformat() if last_visit else None,
+            'on_medication': active_meds.exists(),
+            'medication_count': active_meds.count(),
+            'adherence_rate': adherence_rate,
+            'pending_followup': pending_followups,
+            'recent_symptoms': recent_symptoms.exists(),
+            'recent_symptom_reports': SymptomRecordSerializer(recent_symptoms, many=True).data,
+            'medications': MedicationSerializer(active_meds, many=True).data
+        }
+        
+        students_data.append(student_data)
+    
+    return Response({'students': students_data})
 
 
 @api_view(['GET'])
@@ -666,3 +737,700 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(timestamp__gte=start_date)
         
         return queryset
+
+
+# ============================================================================
+# Emergency SOS System
+# ============================================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def trigger_emergency(request):
+    """
+    Trigger emergency SOS alert
+    POST /api/emergency/trigger/
+    
+    Immediately notifies all clinic staff
+    """
+    serializer = EmergencyTriggerSerializer(data=request.data)
+    
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Create emergency alert
+    emergency = EmergencyAlert.objects.create(
+        student=request.user,
+        location=serializer.validated_data['location'],
+        symptoms=serializer.validated_data.get('symptoms', []),
+        description=serializer.validated_data.get('description', ''),
+        status='active',
+        priority=100  # All emergencies are critical
+    )
+    
+    # Log the emergency
+    AuditLog.objects.create(
+        user=request.user,
+        action='emergency_triggered',
+        details={
+            'emergency_id': str(emergency.id),
+            'location': emergency.location,
+            'symptoms_count': len(emergency.symptoms)
+        }
+    )
+    
+    # TODO: Send real-time notifications to staff
+    # This will be implemented with WebSockets or push notifications
+    # For now, staff can poll /api/emergency/active/
+    
+    return Response({
+        'status': 'emergency_triggered',
+        'message': 'Help is on the way! Stay where you are.',
+        'emergency_id': emergency.id,
+        'emergency': EmergencyAlertSerializer(emergency).data
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def emergency_active(request):
+    """
+    Get active emergencies
+    GET /api/emergency/active/
+    
+    Students: See their own active emergencies
+    Staff: See all active emergencies
+    """
+    if request.user.role == 'staff':
+        # Staff can see all active emergencies
+        emergencies = EmergencyAlert.objects.filter(
+            status__in=['active', 'responding']
+        ).select_related('student', 'responded_by')
+    else:
+        # Students see only their own
+        emergencies = EmergencyAlert.objects.filter(
+            student=request.user,
+            status__in=['active', 'responding']
+        )
+    
+    serializer = EmergencyAlertSerializer(emergencies, many=True)
+    return Response({
+        'count': emergencies.count(),
+        'emergencies': serializer.data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def emergency_history(request):
+    """
+    Get emergency history
+    GET /api/emergency/history/
+    
+    Students: Their own history
+    Staff: All emergencies
+    """
+    if request.user.role == 'staff':
+        emergencies = EmergencyAlert.objects.all().select_related('student', 'responded_by')
+    else:
+        emergencies = EmergencyAlert.objects.filter(student=request.user)
+    
+    # Pagination
+    page_size = int(request.GET.get('page_size', 20))
+    emergencies = emergencies[:page_size]
+    
+    serializer = EmergencyAlertSerializer(emergencies, many=True)
+    return Response({
+        'count': emergencies.count(),
+        'emergencies': serializer.data
+    })
+
+
+@api_view(['PATCH'])
+@permission_classes([IsClinicStaff])
+def emergency_respond(request, emergency_id):
+    """
+    Staff responds to emergency
+    PATCH /api/emergency/<id>/respond/
+    """
+    try:
+        emergency = EmergencyAlert.objects.get(id=emergency_id)
+    except EmergencyAlert.DoesNotExist:
+        return Response({'error': 'Emergency not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Update status to responding if not already
+    if emergency.status == 'active':
+        emergency.status = 'responding'
+        emergency.responded_by = request.user
+        emergency.response_time = timezone.now()
+        emergency.save()
+        
+        # Log response
+        AuditLog.objects.create(
+            user=request.user,
+            action='emergency_responded',
+            details={
+                'emergency_id': str(emergency.id),
+                'student': emergency.student.school_id,
+                'response_time_minutes': emergency.response_time_minutes
+            }
+        )
+    
+    serializer = EmergencyAlertSerializer(emergency)
+    return Response({
+        'message': 'Emergency status updated to responding',
+        'emergency': serializer.data
+    })
+
+
+@api_view(['PATCH'])
+@permission_classes([IsClinicStaff])
+def emergency_resolve(request, emergency_id):
+    """
+    Staff resolves emergency
+    PATCH /api/emergency/<id>/resolve/
+    """
+    try:
+        emergency = EmergencyAlert.objects.get(id=emergency_id)
+    except EmergencyAlert.DoesNotExist:
+        return Response({'error': 'Emergency not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    resolution_notes = request.data.get('notes', '')
+    is_false_alarm = request.data.get('false_alarm', False)
+    
+    if is_false_alarm:
+        emergency.status = 'false_alarm'
+    else:
+        emergency.status = 'resolved'
+    
+    emergency.resolved_at = timezone.now()
+    emergency.resolution_notes = resolution_notes
+    emergency.responded_by = request.user
+    
+    if not emergency.response_time:
+        emergency.response_time = timezone.now()
+    
+    emergency.save()
+    
+    # Log resolution
+    AuditLog.objects.create(
+        user=request.user,
+        action='emergency_resolved',
+        details={
+            'emergency_id': str(emergency.id),
+            'student': emergency.student.school_id,
+            'resolution': emergency.status,
+            'response_time_minutes': emergency.response_time_minutes
+        }
+    )
+    
+    serializer = EmergencyAlertSerializer(emergency)
+    return Response({
+        'message': f'Emergency {emergency.get_status_display()}',
+        'emergency': serializer.data
+    })
+
+
+# ============================================================================
+# Medication Management System
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_list(request):
+    """
+    Get medications for current user
+    GET /api/medications/
+    
+    Students: Their own medications
+    Staff: Can filter by student_id
+    """
+    if request.user.role == 'staff':
+        # Staff can query specific student
+        student_id = request.GET.get('student_id')
+        if student_id:
+            medications = Medication.objects.filter(
+                student__school_id=student_id
+            ).select_related('student', 'prescribed_by', 'symptom_record')
+        else:
+            # All medications (for staff dashboard)
+            medications = Medication.objects.all().select_related(
+                'student', 'prescribed_by'
+            )[:50]  # Limit to recent 50
+    else:
+        # Students see only their own
+        medications = Medication.objects.filter(
+            student=request.user
+        ).select_related('prescribed_by', 'symptom_record')
+    
+    # Filter by active status
+    active_only = request.GET.get('active_only', 'false').lower() == 'true'
+    if active_only:
+        medications = medications.filter(is_active=True)
+    
+    serializer = MedicationSerializer(medications, many=True)
+    return Response({
+        'count': medications.count(),
+        'medications': serializer.data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsClinicStaff])
+def medication_create(request):
+    """
+    Staff prescribes medication to student
+    POST /api/medications/
+    """
+    serializer = MedicationCreateSerializer(data=request.data)
+    
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Create medication
+    medication = serializer.save(prescribed_by=request.user)
+    
+    # Auto-generate medication logs based on schedule
+    from datetime import datetime, timedelta
+    
+    current_date = medication.start_date
+    while current_date <= medication.end_date:
+        for time_str in medication.schedule_times:
+            # Parse time (HH:MM format)
+            try:
+                scheduled_time = datetime.strptime(time_str, '%H:%M').time()
+                MedicationLog.objects.create(
+                    medication=medication,
+                    scheduled_date=current_date,
+                    scheduled_time=scheduled_time,
+                    status='pending'
+                )
+            except ValueError:
+                pass  # Skip invalid time formats
+        
+        current_date += timedelta(days=1)
+    
+    # Log the prescription
+    AuditLog.objects.create(
+        user=request.user,
+        action='medication_prescribed',
+        details={
+            'medication_id': str(medication.id),
+            'student': medication.student.school_id,
+            'medication_name': medication.name,
+            'duration_days': (medication.end_date - medication.start_date).days + 1
+        }
+    )
+    
+    return Response({
+        'message': 'Medication prescribed successfully',
+        'medication': MedicationSerializer(medication).data
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_detail(request, medication_id):
+    """
+    Get medication details
+    GET /api/medications/<id>/
+    """
+    try:
+        medication = Medication.objects.select_related(
+            'student', 'prescribed_by', 'symptom_record'
+        ).prefetch_related('logs').get(id=medication_id)
+    except Medication.DoesNotExist:
+        return Response({'error': 'Medication not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Permission check
+    if request.user.role != 'staff' and medication.student != request.user:
+        return Response(
+            {'error': 'You do not have permission to view this medication'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    serializer = MedicationSerializer(medication)
+    return Response(serializer.data)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsClinicStaff])
+def medication_update(request, medication_id):
+    """
+    Update medication (staff only)
+    PATCH /api/medications/<id>/
+    """
+    try:
+        medication = Medication.objects.get(id=medication_id)
+    except Medication.DoesNotExist:
+        return Response({'error': 'Medication not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Update fields
+    allowed_fields = ['dosage', 'frequency', 'instructions', 'is_active', 'end_date']
+    for field in allowed_fields:
+        if field in request.data:
+            setattr(medication, field, request.data[field])
+    
+    medication.save()
+    
+    return Response({
+        'message': 'Medication updated',
+        'medication': MedicationSerializer(medication).data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_logs_today(request):
+    """
+    Get today's medication schedule for student
+    GET /api/medications/logs/today/
+    """
+    today = timezone.now().date()
+    
+    if request.user.role == 'student':
+        # Get student's medications
+        medications = Medication.objects.filter(
+            student=request.user,
+            is_active=True
+        )
+        
+        logs = MedicationLog.objects.filter(
+            medication__in=medications,
+            scheduled_date=today
+        ).select_related('medication').order_by('scheduled_time')
+        
+    else:
+        # Staff sees all for the day
+        logs = MedicationLog.objects.filter(
+            scheduled_date=today
+        ).select_related('medication', 'medication__student')[:100]
+    
+    serializer = MedicationLogSerializer(logs, many=True)
+    return Response({
+        'date': today,
+        'count': logs.count(),
+        'logs': serializer.data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def medication_log_mark_taken(request, log_id):
+    """
+    Mark medication dose as taken
+    POST /api/medications/logs/<id>/taken/
+    """
+    try:
+        log = MedicationLog.objects.select_related('medication').get(id=log_id)
+    except MedicationLog.DoesNotExist:
+        return Response({'error': 'Log not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Permission check
+    if request.user.role != 'staff' and log.medication.student != request.user:
+        return Response(
+            {'error': 'Permission denied'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    notes = request.data.get('notes', '')
+    log.mark_as_taken(notes=notes)
+    
+    return Response({
+        'message': 'Marked as taken',
+        'log': MedicationLogSerializer(log).data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_adherence(request):
+    """
+    Get medication adherence statistics
+    GET /api/medications/adherence/
+    """
+    if request.user.role == 'student':
+        medications = Medication.objects.filter(student=request.user, is_active=True)
+    else:
+        student_id = request.GET.get('student_id')
+        if student_id:
+            medications = Medication.objects.filter(
+                student__school_id=student_id,
+                is_active=True
+            )
+        else:
+            return Response({'error': 'student_id required for staff'}, status=400)
+    
+    stats = []
+    for med in medications:
+        total_logs = med.logs.exclude(status='pending').count()
+        if total_logs > 0:
+            taken_count = med.logs.filter(status='taken').count()
+            missed_count = med.logs.filter(status='missed').count()
+            adherence_rate = (taken_count / total_logs) * 100
+            
+            stats.append({
+                'medication_id': str(med.id),
+                'medication_name': med.name,
+                'total_doses': total_logs,
+                'taken': taken_count,
+                'missed': missed_count,
+                'adherence_rate': round(adherence_rate, 1),
+                'days_remaining': med.days_remaining
+            })
+    
+    # Overall adherence
+    total_all = sum(s['total_doses'] for s in stats)
+    taken_all = sum(s['taken'] for s in stats)
+    overall_rate = (taken_all / total_all * 100) if total_all > 0 else 0
+    
+    return Response({
+        'overall_adherence_rate': round(overall_rate, 1),
+        'medications': stats
+    })
+
+
+# ============================================================================
+# Follow-Up Views
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def followup_list(request):
+    """
+    Get follow-ups for current user (students) or all/specific student (staff)
+    GET /api/followups/
+    Query params: status, student_id (staff only)
+    """
+    if request.user.role == 'student':
+        followups = FollowUp.objects.filter(student=request.user)
+    else:
+        # Staff can see all or filter by student
+        student_id = request.GET.get('student_id')
+        if student_id:
+            followups = FollowUp.objects.filter(student__school_id=student_id)
+        else:
+            followups = FollowUp.objects.all()
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        followups = followups.filter(status=status_filter)
+    
+    # Auto-check and update overdue status
+    for followup in followups:
+        followup.check_overdue()
+    
+    serializer = FollowUpSerializer(followups, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def followup_pending(request):
+    """
+    Get pending follow-ups (including overdue) for current user
+    GET /api/followups/pending/
+    """
+    followups = FollowUp.objects.filter(
+        student=request.user,
+        status__in=['pending', 'overdue']
+    ).order_by('scheduled_date')
+    
+    # Check for overdue
+    for followup in followups:
+        followup.check_overdue()
+    
+    serializer = FollowUpSerializer(followups, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsStudent])
+def followup_respond(request, pk):
+    """
+    Submit response to follow-up
+    POST /api/followups/<id>/respond/
+    """
+    try:
+        followup = FollowUp.objects.get(pk=pk, student=request.user)
+    except FollowUp.DoesNotExist:
+        return Response({'error': 'Follow-up not found'}, status=404)
+    
+    if followup.status == 'completed':
+        return Response({'error': 'Follow-up already completed'}, status=400)
+    
+    serializer = FollowUpResponseSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
+    
+    # Update follow-up with response
+    followup.outcome = serializer.validated_data['outcome']
+    followup.notes = serializer.validated_data.get('notes', '')
+    followup.still_experiencing_symptoms = serializer.validated_data['still_experiencing_symptoms']
+    followup.new_symptoms = serializer.validated_data.get('new_symptoms', [])
+    followup.response_date = timezone.now()
+    followup.status = 'completed'
+    followup.save()
+    
+    # Auto-flag for appointment if condition worsened
+    if followup.outcome == 'worse':
+        followup.requires_appointment = True
+        followup.save()
+    
+    return Response({
+        'message': 'Follow-up response submitted',
+        'followup': FollowUpSerializer(followup).data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsClinicStaff])
+def followup_review(request, pk):
+    """
+    Staff review of follow-up response
+    POST /api/followups/<id>/review/
+    """
+    try:
+        followup = FollowUp.objects.get(pk=pk)
+    except FollowUp.DoesNotExist:
+        return Response({'error': 'Follow-up not found'}, status=404)
+    
+    review_notes = request.data.get('review_notes', '')
+    requires_appointment = request.data.get('requires_appointment', False)
+    
+    followup.reviewed_by = request.user
+    followup.review_notes = review_notes
+    followup.requires_appointment = requires_appointment
+    followup.save()
+    
+    return Response({
+        'message': 'Follow-up reviewed',
+        'followup': FollowUpSerializer(followup).data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsClinicStaff])
+def followup_needs_review(request):
+    """
+    Get follow-ups that need staff review
+    GET /api/followups/needs-review/
+    """
+    # Get all follow-ups that need attention
+    followups = FollowUp.objects.select_related('student', 'reviewed_by').order_by('-scheduled_date')
+    
+    # Enrich with student data
+    data = []
+    for followup in followups:
+        followup_data = FollowUpSerializer(followup).data
+        followup_data['student_name'] = followup.student.name
+        followup_data['student_school_id'] = followup.student.school_id
+        followup_data['student_department'] = followup.student.department
+        followup_data['reviewed_by_name'] = followup.reviewed_by.name if followup.reviewed_by else None
+        data.append(followup_data)
+    
+    return Response(data)
+
+
+# ============================================================================
+# Analytics Views (Real Data)
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsClinicStaff])
+def staff_analytics(request):
+    """
+    Get comprehensive analytics data for charts
+    GET /api/staff/analytics/?period=7d
+    
+    Periods: 7d, 30d, 90d, 1y
+    """
+    period = request.query_params.get('period', '30d')
+    
+    # Calculate date range
+    today = timezone.now().date()
+    if period == '7d':
+        start_date = today - timedelta(days=7)
+    elif period == '30d':
+        start_date = today - timedelta(days=30)
+    elif period == '90d':
+        start_date = today - timedelta(days=90)
+    elif period == '1y':
+        start_date = today - timedelta(days=365)
+    else:
+        start_date = today - timedelta(days=30)
+    
+    # Summary stats
+    total_consultations = SymptomRecord.objects.filter(created_at__date__gte=start_date).count()
+    unique_patients = SymptomRecord.objects.filter(created_at__date__gte=start_date).values('student').distinct().count()
+    emergency_alerts = EmergencyAlert.objects.filter(created_at__date__gte=start_date).count()
+    prescriptions = Medication.objects.filter(created_at__date__gte=start_date).count()
+    
+    # Top 10 diagnosed conditions
+    top_conditions = SymptomRecord.objects.filter(
+        created_at__date__gte=start_date
+    ).values('predicted_disease').annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    # Consultation trends (daily counts)
+    consultation_trends = []
+    current_date = start_date
+    while current_date <= today:
+        count = SymptomRecord.objects.filter(created_at__date=current_date).count()
+        consultation_trends.append({
+            'date': current_date.isoformat(),
+            'count': count
+        })
+        current_date += timedelta(days=1)
+    
+    # Consultations by department
+    dept_breakdown = SymptomRecord.objects.filter(
+        created_at__date__gte=start_date
+    ).values('student__department').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Symptom severity distribution (mock data based on confidence)
+    severity_distribution = {
+        'mild': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__lt=0.5).count(),
+        'moderate': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.5, confidence_score__lt=0.75).count(),
+        'severe': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.75, confidence_score__lt=0.9).count(),
+        'critical': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.9).count(),
+    }
+    
+    # Most common symptoms
+    from collections import Counter
+    
+    symptom_records = SymptomRecord.objects.filter(created_at__date__gte=start_date)
+    all_symptoms = []
+    for record in symptom_records:
+        if record.symptoms:  # Changed from symptoms_reported to symptoms
+            all_symptoms.extend(record.symptoms)
+    
+    symptom_counter = Counter(all_symptoms)
+    common_symptoms = [
+        {
+            'symptom': symptom,
+            'count': count,
+            'percentage': round((count / len(all_symptoms) * 100) if all_symptoms else 0, 1)
+        }
+        for symptom, count in symptom_counter.most_common(10)
+    ]
+    
+    data = {
+        'period': period,
+        'summary': {
+            'total_consultations': total_consultations,
+            'unique_patients': unique_patients,
+            'emergency_alerts': emergency_alerts,
+            'prescriptions': prescriptions
+        },
+        'top_conditions': list(top_conditions),
+        'consultation_trends': consultation_trends,
+        'department_breakdown': list(dept_breakdown),
+        'severity_distribution': severity_distribution,
+        'common_symptoms': common_symptoms
+    }
+    
+    return Response(data)

@@ -1,13 +1,23 @@
-<template>
+c<template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Navigation (reuse from Dashboard) -->
+    <!-- Navigation Header -->
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
       <div class="container mx-auto px-6 py-4">
         <div class="flex justify-between items-center">
-          <router-link to="/dashboard" class="text-2xl font-heading font-bold text-cpsu-green">
-            CPSU Health Assistant
+          <router-link to="/dashboard" class="text-cpsu-green">
+            <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+            <p class="text-sm text-gray-600">Mighty Hornbills</p>
           </router-link>
-          <button @click="handleLogout" class="btn-outline !py-2 !px-4">Logout</button>
+          <div class="flex items-center space-x-4">
+            <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
+            <router-link to="/symptom-checker" class="text-cpsu-green font-semibold">Check Symptoms</router-link>
+            <router-link to="/medications" class="text-gray-700 hover:text-cpsu-green">Medications</router-link>
+            <router-link to="/followups" class="text-gray-700 hover:text-cpsu-green">Follow-Ups</router-link>
+            <router-link to="/health-dashboard" class="text-gray-700 hover:text-cpsu-green">Analytics</router-link>
+            <router-link to="/chat" class="text-gray-700 hover:text-cpsu-green">Chat</router-link>
+            <router-link to="/history" class="text-gray-700 hover:text-cpsu-green">History</router-link>
+            <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green">Profile</router-link>
+          </div>
         </div>
       </div>
     </nav>

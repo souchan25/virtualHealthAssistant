@@ -106,6 +106,91 @@ export interface DashboardStats {
   }>
 }
 
+// Medication Types
+export interface Medication {
+  id: number
+  student: number
+  student_name?: string
+  name: string
+  dosage: string
+  frequency: string
+  schedule_times: string[]  // ["08:00", "14:00", "20:00"]
+  start_date: string
+  end_date: string
+  instructions?: string
+  side_effects?: string
+  prescribed_by: number
+  prescribed_by_name?: string
+  is_active: boolean
+  created_at: string
+  recent_logs?: MedicationLog[]
+  adherence_rate?: number
+}
+
+export interface MedicationLog {
+  id: number
+  medication: number
+  medication_name?: string
+  scheduled_date: string
+  scheduled_time: string
+  taken_at?: string | null
+  status: 'pending' | 'taken' | 'missed'
+  notes?: string
+  is_overdue?: boolean
+}
+
+export interface MedicationCreateData {
+  student_id: number
+  name: string
+  dosage: string
+  frequency: string
+  schedule_times: string[]
+  start_date: string
+  end_date: string
+  instructions?: string
+  side_effects?: string
+}
+
+export interface AdherenceStats {
+  total_doses: number
+  taken_doses: number
+  missed_doses: number
+  adherence_percentage: number
+  medications: Array<{
+    medication_name: string
+    adherence_rate: number
+  }>
+}
+
+// Follow-Up Types
+export interface FollowUp {
+  id: string
+  symptom_record: number
+  student: number
+  student_name?: string
+  student_school_id?: string
+  symptom_disease?: string
+  scheduled_date: string
+  status: 'pending' | 'completed' | 'overdue' | 'cancelled'
+  response_date?: string | null
+  outcome?: 'improved' | 'same' | 'worse' | 'resolved' | null
+  notes?: string
+  still_experiencing_symptoms?: boolean | null
+  new_symptoms?: string[]
+  requires_appointment?: boolean
+  review_notes?: string
+  is_overdue?: boolean
+  days_until_due?: number
+  created_at: string
+}
+
+export interface FollowUpResponse {
+  outcome: 'improved' | 'same' | 'worse' | 'resolved'
+  notes?: string
+  still_experiencing_symptoms: boolean
+  new_symptoms?: string[]
+}
+
 // API Response Types
 export interface ApiResponse<T> {
   data: T

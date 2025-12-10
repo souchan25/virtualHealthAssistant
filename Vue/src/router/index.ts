@@ -58,6 +58,60 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresStaff: true }
   },
   {
+    path: '/staff/emergencies',
+    name: 'staff-emergencies',
+    component: () => import('@/views/staff/EmergencyDashboard.vue'),
+    meta: { requiresAuth: true, requiresStaff: true }
+  },
+  {
+    path: '/staff/students',
+    name: 'staff-students',
+    component: () => import('@/views/staff/StudentRecords.vue'),
+    meta: { requiresAuth: true, requiresStaff: true }
+  },
+  {
+    path: '/staff/prescribe',
+    name: 'staff-prescribe',
+    component: () => import('@/views/staff/MedicationPrescribe.vue'),
+    meta: { requiresAuth: true, requiresStaff: true }
+  },
+  {
+    path: '/staff/adherence',
+    name: 'staff-adherence',
+    component: () => import('@/views/staff/AdherenceMonitor.vue'),
+    meta: { requiresAuth: true, requiresStaff: true }
+  },
+  {
+    path: '/staff/followups',
+    name: 'staff-followups',
+    component: () => import('@/views/staff/FollowUpManagement.vue'),
+    meta: { requiresAuth: true, requiresStaff: true }
+  },
+  {
+    path: '/staff/analytics',
+    name: 'staff-analytics',
+    component: () => import('@/views/staff/AnalyticsDashboard.vue'),
+    meta: { requiresAuth: true, requiresStaff: true }
+  },
+  {
+    path: '/medications',
+    name: 'medications',
+    component: () => import('@/views/MedicationList.vue'),
+    meta: { requiresAuth: true, requiresStudent: true }
+  },
+  {
+    path: '/followups',
+    name: 'followups',
+    component: () => import('@/views/FollowUpList.vue'),
+    meta: { requiresAuth: true, requiresStudent: true }
+  },
+  {
+    path: '/health-dashboard',
+    name: 'health-dashboard',
+    component: () => import('@/views/HealthDashboard.vue'),
+    meta: { requiresAuth: true, requiresStudent: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue')
