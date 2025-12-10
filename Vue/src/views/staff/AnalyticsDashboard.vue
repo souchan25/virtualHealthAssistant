@@ -5,7 +5,7 @@
       <div class="container mx-auto px-6 py-4">
         <div class="flex justify-between items-center mb-4">
           <div class="flex items-center space-x-4">
-            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-22 w-22 object-contain">
+            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-14 w-14 object-contain">
             <div>
               <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Clinic</h1>
               <p class="text-sm text-gray-600">Health Analytics & Trends</p>
