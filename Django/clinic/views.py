@@ -1597,6 +1597,8 @@ def followup_review(request, pk):
     followup.reviewed_by = request.user
     followup.review_notes = review_notes
     followup.requires_appointment = requires_appointment
+    followup.status = 'reviewed'
+    followup.response_date = timezone.now()
     followup.save()
     
     return Response({
@@ -1612,8 +1614,10 @@ def followup_needs_review(request):
     Get follow-ups that need staff review
     GET /api/followups/needs-review/
     """
-    # Get all follow-ups that need attention
-    followups = FollowUp.objects.select_related('student', 'reviewed_by').order_by('-scheduled_date')
+    # Get follow-ups needing staff attention
+    followups = FollowUp.objects.select_related('student', 'reviewed_by')\
+        .filter(status__in=['needs_review', 'pending'])\
+        .order_by('-scheduled_date')
     
     # Enrich with student data
     data = []
