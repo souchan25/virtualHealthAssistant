@@ -768,19 +768,35 @@ def student_directory(request):
 
 from rest_framework.renderers import JSONRenderer, BaseRenderer
 
-class BinaryRenderer(BaseRenderer):
-    """Renderer for binary file downloads"""
-    media_type = 'application/octet-stream'
-    format = 'binary'
+
+class CSVRendererSimple(BaseRenderer):
+    """
+    Renderer that allows DRF to accept format=csv via query param.
+    Rendering is bypassed because we return HttpResponse for CSV.
+    """
+    media_type = 'text/csv'
+    format = 'csv'
+    charset = 'utf-8'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return data
+
+
+class ExcelRendererSimple(BaseRenderer):
+    """
+    Renderer that allows DRF to accept format=excel via query param.
+    Rendering is bypassed because we return HttpResponse for Excel.
+    """
+    media_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    format = 'excel'
     charset = None
-    render_style = 'binary'
-    
+
     def render(self, data, accepted_media_type=None, renderer_context=None):
         return data
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsClinicStaff])
-@renderer_classes([JSONRenderer, BinaryRenderer])
+@renderer_classes([JSONRenderer, CSVRendererSimple, ExcelRendererSimple])
 def export_report(request):
     """
     Export symptom data to Excel or CSV format

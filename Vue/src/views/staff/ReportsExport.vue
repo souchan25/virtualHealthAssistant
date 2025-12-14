@@ -152,7 +152,10 @@ async function downloadReport() {
         params,
         responseType: 'blob',
         headers: {
-          'Accept': 'application/octet-stream'  // Binary file download
+          'Accept':
+            exportFormat.value === 'excel'
+              ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+              : 'text/csv'
         }
       })
 
