@@ -99,6 +99,36 @@ class AIInsightGenerator:
         
         self.logger.info("AI Insight Generator initialized with real LLM APIs")
     
+    def _fix_json_response(self, text: str) -> str:
+        """
+        Fix common JSON errors in LLM responses.
+        LLMs sometimes return malformed JSON that needs cleanup.
+        """
+        if not text:
+            return text
+        
+        # Fix "true/false" literal (LLM copies from prompt example)
+        text = re.sub(r':\s*true/false', ': true', text)
+        
+        # Fix trailing commas before closing braces
+        text = re.sub(r',\s*}', '}', text)
+        text = re.sub(r',\s*]', ']', text)
+        
+        # Fix single quotes to double quotes
+        # Be careful not to change apostrophes in text
+        text = re.sub(r"'(\w+)':", r'"\1":', text)  # 'key': -> "key":
+        text = re.sub(r":\s*'([^']*)'", r': "\1"', text)  # : 'value' -> : "value"
+        
+        # Fix unquoted null
+        text = re.sub(r':\s*null\b', ': null', text, flags=re.IGNORECASE)
+        text = re.sub(r':\s*None\b', ': null', text)
+        
+        # Fix Python-style booleans
+        text = re.sub(r':\s*True\b', ': true', text)
+        text = re.sub(r':\s*False\b', ': false', text)
+        
+        return text
+    
     def generate_chat_response(self, message: str, context: dict = None) -> str:
         """
         Generate AI response for health chat using available LLM.
@@ -319,7 +349,6 @@ Keep each insight under 100 words. Be culturally sensitive to Filipino students.
         
         # Try to find JSON array
         if not text.startswith('['):
-            import re
             json_match = re.search(r'\[[\s\S]*\]', text)
             if json_match:
                 text = json_match.group(0)
@@ -434,11 +463,13 @@ Be concise. Focus on medical accuracy."""
                     
                     # Try to find JSON object in response
                     if not result_text.startswith('{'):
-                        # Look for JSON object pattern
-                        import re
-                        json_match = re.search(r'\{[^{}]*"agrees"[^{}]*\}', result_text, re.DOTALL)
+                        # Look for JSON object pattern (allow nested content)
+                        json_match = re.search(r'\{[\s\S]*?"agrees"[\s\S]*?\}', result_text)
                         if json_match:
                             result_text = json_match.group(0)
+                    
+                    # Fix common LLM JSON errors
+                    result_text = self._fix_json_response(result_text)
                     
                     # Validate JSON before parsing
                     if not result_text or not result_text.startswith('{'):
@@ -497,9 +528,12 @@ Be concise. Focus on medical accuracy."""
                         
                         # Try to find JSON object in response
                         if not result_text.startswith('{'):
-                            json_match = re.search(r'\{[^{}]*"agrees"[^{}]*\}', result_text, re.DOTALL)
+                            json_match = re.search(r'\{[\s\S]*?"agrees"[\s\S]*?\}', result_text)
                             if json_match:
                                 result_text = json_match.group(0)
+                        
+                        # Fix common LLM JSON errors
+                        result_text = self._fix_json_response(result_text)
                         
                         # Validate JSON before parsing
                         if not result_text or not result_text.startswith('{'):
