@@ -320,6 +320,14 @@ const submitPrescription = async () => {
   successMessage.value = null
 
   try {
+    // Basic required field checks
+    if (!form.value.start_date || !form.value.end_date) {
+      throw new Error('Start date and end date are required')
+    }
+    if (!form.value.name || !form.value.dosage || !form.value.frequency) {
+      throw new Error('Name, dosage, and frequency are required')
+    }
+
     // First, get student ID from school_id
     const studentResponse = await api.get('/staff/students/', {
       params: { search: form.value.student_school_id }
@@ -341,7 +349,7 @@ const submitPrescription = async () => {
 
     // Create prescription data
     const prescriptionData = {
-      student_id: studentId,
+      student: studentId, // serializer expects "student"
       name: form.value.name,
       dosage: form.value.dosage,
       frequency: form.value.frequency,
