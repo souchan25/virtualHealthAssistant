@@ -21,8 +21,8 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">Format</label>
         <select v-model="exportFormat" class="input-field">
           <option value="json">JSON</option>
-          <option value="csv">CSV (Coming Soon)</option>
-          <option value="excel">Excel (Coming Soon)</option>
+          <option value="csv">CSV</option>
+          <option value="excel">Excel</option>
         </select>
       </div>
     </div>
@@ -113,7 +113,7 @@ const filters = ref({
 async function generateReport() {
   loading.value = true
   try {
-    const params: any = {}
+    const params: any = { format: 'json' }  // Always get JSON for preview
     if (filters.value.start_date) params.start_date = filters.value.start_date
     if (filters.value.end_date) params.end_date = filters.value.end_date
 
@@ -127,30 +127,47 @@ async function generateReport() {
   }
 }
 
-function downloadReport() {
-  if (!reportData.value) return
-
-  let content: string
-  let filename: string
-  let mimeType: string
-
+async function downloadReport() {
   if (exportFormat.value === 'json') {
-    content = JSON.stringify(reportData.value.data, null, 2)
-    filename = `health_report_${new Date().toISOString().split('T')[0]}.json`
-    mimeType = 'application/json'
+    // JSON: use local data
+    if (!reportData.value?.data) return
+    const content = JSON.stringify(reportData.value.data, null, 2)
+    const filename = `health_report_${new Date().toISOString().split('T')[0]}.json`
+    const blob = new Blob([content], { type: 'application/json' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(url)
   } else {
-    // CSV/Excel coming soon
-    alert('CSV and Excel export coming soon!')
-    return
-  }
+    // CSV/Excel: download from API
+    try {
+      loading.value = true
+      const params: any = { format: exportFormat.value }
+      if (filters.value.start_date) params.start_date = filters.value.start_date
+      if (filters.value.end_date) params.end_date = filters.value.end_date
 
-  const blob = new Blob([content], { type: mimeType })
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  window.URL.revokeObjectURL(url)
+      const response = await api.get('/staff/export/', {
+        params,
+        responseType: 'blob'
+      })
+
+      const ext = exportFormat.value === 'excel' ? 'xlsx' : 'csv'
+      const filename = `health_report_${new Date().toISOString().split('T')[0]}.${ext}`
+      const url = window.URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Download failed:', error)
+      alert('Failed to download report')
+    } finally {
+      loading.value = false
+    }
+  }
 }
 
 function clearDates() {

@@ -808,6 +808,33 @@ def export_report(request):
     # Generate filename with timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
+    # JSON format for preview
+    if export_format == 'json':
+        data = []
+        for record in queryset:
+            data.append({
+                'id': str(record.id),
+                'created_at': record.created_at.isoformat(),
+                'student': record.student.id,
+                'student_id': record.student.school_id,
+                'student_name': record.student.name,
+                'department': record.student.department,
+                'symptoms': record.symptoms,
+                'duration_days': record.duration_days,
+                'severity': record.severity,
+                'predicted_disease': record.predicted_disease,
+                'confidence_score': record.confidence_score,
+                'icd10_code': record.icd10_code,
+                'is_communicable': record.is_communicable,
+                'is_acute': record.is_acute,
+                'requires_referral': record.requires_referral,
+            })
+        return Response({
+            'record_count': len(data),
+            'data': data,
+            'generated_at': timestamp
+        })
+    
     if export_format == 'excel':
         try:
             import openpyxl
