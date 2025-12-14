@@ -52,7 +52,7 @@
         <div class="flex items-center gap-4">
           <label class="text-sm font-medium text-gray-700">Time Period:</label>
           <button
-            v-for="period in ['7d', '30d', '90d', '1y']"
+            v-for="period in (['7d', '30d', '90d', '1y'] as const)"
             :key="period"
             @click="selectedPeriod = period"
             :class="['px-4 py-2 rounded-lg font-medium transition', selectedPeriod === period ? 'bg-cpsu-green text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200']"

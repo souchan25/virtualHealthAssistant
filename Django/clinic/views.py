@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.db.models import Count, Q
 from datetime import timedelta
 import uuid
+import logging
 
 from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats, EmergencyAlert, Medication, MedicationLog, FollowUp
 from .serializers import (
@@ -28,6 +29,8 @@ from .serializers import (
 )
 from .permissions import IsStudent, IsClinicStaff, IsOwnerOrStaff, CanModifyProfile, HasDataConsent
 from .ml_service import get_ml_predictor
+
+logger = logging.getLogger(__name__)
 from .llm_service import AIInsightGenerator
 from .rasa_service import RasaChatService
 
@@ -382,23 +385,109 @@ def send_chat_message(request):
         # Step 2: Check if we should use LLM fallback
         if rasa_service.should_use_llm_fallback(rasa_response):
             # LLM Fallback: Only when Rasa completely fails
-            response_text = ai_generator.generate_chat_response(
-                message=message,
-                context={'language': language, 'session_id': str(session_id), 'rasa_failed': True}
-            )
+            logger.warning(f"Using LLM fallback (Rasa {'unavailable' if not rasa_service.is_available() else 'low confidence'})")
+            try:
+                response_text = ai_generator.generate_chat_response(
+                    message=message,
+                    context={'language': language, 'session_id': str(session_id), 'rasa_failed': True}
+                )
+                # Ensure response is not None or empty
+                if not response_text or not response_text.strip():
+                    raise ValueError("LLM returned empty response")
+            except Exception as llm_error:
+                logger.error(f"LLM fallback failed: {llm_error}")
+                # Ultimate fallback - hardcoded response
+                response_text = "Thank you for your message. I'm experiencing technical difficulties. Please consult with our clinic staff for proper evaluation of your symptoms."
+            
             response_source = "llm_fallback"
             buttons = []
+            
+            # Try to extract symptoms from message and get ML prediction for LLM fallback
+            diagnosis_data = None
+            try:
+                predictor = get_ml_predictor()
+                available_symptoms = predictor.get_available_symptoms()
+                
+                # Simple symptom extraction from message
+                message_lower = message.lower().replace(' ', '_')
+                extracted_symptoms = [s for s in available_symptoms if s in message_lower]
+                
+                # If we found symptoms, get ML prediction
+                if extracted_symptoms:
+                    prediction = predictor.predict(extracted_symptoms)
+                    diagnosis_data = {
+                        'symptoms': extracted_symptoms,
+                        'predicted_disease': prediction.get('predicted_disease'),
+                        'confidence': prediction.get('confidence_score', 0.0),
+                        'top_predictions': prediction.get('top_predictions', []),
+                        'is_communicable': prediction.get('is_communicable', False),
+                        'is_acute': prediction.get('is_acute', False),
+                        'icd10_code': prediction.get('icd10_code', ''),
+                        'severity': 'moderate',
+                        'duration_days': 1
+                    }
+                    logger.info(f"LLM fallback: extracted {len(extracted_symptoms)} symptoms, predicted {prediction.get('predicted_disease')}")
+            except Exception as extract_error:
+                logger.warning(f"Could not extract symptoms from LLM fallback message: {extract_error}")
         else:
             # Use Rasa response (Rasa handles conversation flow)
             response_text = rasa_response['text']
             response_source = "rasa"
             buttons = rasa_response.get('buttons', [])
+            
+            # Check if Rasa provided diagnosis data
+            diagnosis_data = rasa_response.get('custom', {}).get('diagnosis')
+        
+        # Step 3: Save symptom record if diagnosis was provided
+        record_id = None
+        if diagnosis_data and diagnosis_data.get('predicted_disease'):
+            try:
+                # Extract symptoms from diagnosis data or session metadata
+                symptoms = diagnosis_data.get('symptoms', [])
+                
+                # Convert severity string to integer (1=Mild, 2=Moderate, 3=Severe)
+                severity_map = {'mild': 1, 'moderate': 2, 'severe': 3}
+                severity_value = diagnosis_data.get('severity', 'moderate')
+                if isinstance(severity_value, str):
+                    severity_int = severity_map.get(severity_value.lower(), 2)  # Default to moderate (2)
+                else:
+                    severity_int = int(severity_value) if severity_value else 2
+                
+                # Create symptom record for history tracking
+                record = SymptomRecord.objects.create(
+                    student=request.user,
+                    symptoms=symptoms,
+                    duration_days=diagnosis_data.get('duration_days', 1),
+                    severity=severity_int,
+                    predicted_disease=diagnosis_data['predicted_disease'],
+                    confidence_score=diagnosis_data.get('confidence', 0.0),
+                    top_predictions=diagnosis_data.get('top_predictions', []),
+                    is_communicable=diagnosis_data.get('is_communicable', False),
+                    is_acute=diagnosis_data.get('is_acute', False),
+                    icd10_code=diagnosis_data.get('icd10_code', '')
+                )
+                
+                # Check referral criteria
+                record.check_referral_criteria()
+                record.save()
+                
+                # Auto-create follow-up (3 days from now)
+                FollowUp.create_from_symptom(record, days_ahead=3)
+                
+                record_id = str(record.id)
+                logger.info(f"Created symptom record {record_id} from chat diagnosis")
+                
+            except Exception as e:
+                logger.error(f"Failed to create symptom record from chat: {e}")
         
         return Response({
             'response': response_text,
             'session_id': str(session_id),
             'source': response_source,  # "rasa" or "llm_fallback"
-            'buttons': buttons  # Interactive buttons from Rasa
+            'buttons': buttons,  # Interactive buttons from Rasa
+            'rasa_available': rasa_service.is_available(),  # Debug info
+            'record_id': record_id,  # ID of created symptom record (if any)
+            'diagnosis_saved': record_id is not None  # Whether diagnosis was saved to history
         })
     
     except ChatSession.DoesNotExist:
@@ -634,6 +723,8 @@ def student_directory(request):
     
     if has_symptoms == 'true':
         queryset = queryset.filter(symptom_records__isnull=False).distinct()
+    elif has_symptoms == 'false':
+        queryset = queryset.filter(symptom_records__isnull=True)
     
     # Build enriched student data
     students_data = []
@@ -679,30 +770,153 @@ def student_directory(request):
 @permission_classes([IsAuthenticated, IsClinicStaff])
 def export_report(request):
     """
-    Export symptom data to Excel/CSV format
-    GET /api/staff/export/
-    """
-    # TODO: Implement Excel export using pandas or openpyxl
-    # This is a placeholder
+    Export symptom data to Excel or CSV format
+    GET /api/staff/export/?format=csv|excel&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
     
+    Query Parameters:
+        - format: 'csv' or 'excel' (default: csv)
+        - start_date: Filter records from this date (optional)
+        - end_date: Filter records until this date (optional)
+        - department: Filter by department (optional)
+        - disease: Filter by predicted disease (optional)
+    """
+    import csv
+    from django.http import HttpResponse
+    from datetime import datetime
+    
+    # Get query parameters
+    export_format = request.query_params.get('format', 'csv').lower()
     start_date = request.query_params.get('start_date')
     end_date = request.query_params.get('end_date')
+    department = request.query_params.get('department')
+    disease = request.query_params.get('disease')
     
-    queryset = SymptomRecord.objects.all()
+    # Build queryset
+    queryset = SymptomRecord.objects.select_related('student').all()
     
     if start_date:
         queryset = queryset.filter(created_at__gte=start_date)
     if end_date:
         queryset = queryset.filter(created_at__lte=end_date)
+    if department:
+        queryset = queryset.filter(student__department=department)
+    if disease:
+        queryset = queryset.filter(predicted_disease__icontains=disease)
     
-    # Return data for now
-    serializer = SymptomRecordSerializer(queryset, many=True)
+    queryset = queryset.order_by('-created_at')
     
-    return Response({
-        'message': 'Export functionality - implement Excel generation',
-        'record_count': queryset.count(),
-        'data': serializer.data
-    })
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    if export_format == 'excel':
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill
+            from openpyxl.utils import get_column_letter
+            
+            # Create workbook
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Symptom Records"
+            
+            # Define headers
+            headers = [
+                'Date', 'Time', 'Student ID', 'Student Name', 'Department',
+                'Symptoms', 'Duration (days)', 'Severity', 'Predicted Disease',
+                'Confidence', 'ICD-10 Code', 'Communicable', 'Acute',
+                'Requires Referral'
+            ]
+            
+            # Style header row
+            header_fill = PatternFill(start_color='006B3F', end_color='006B3F', fill_type='solid')
+            header_font = Font(bold=True, color='FFFFFF')
+            
+            for col_num, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_num)
+                cell.value = header
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Add data rows
+            for row_num, record in enumerate(queryset, 2):
+                severity_map = {1: 'Mild', 2: 'Moderate', 3: 'Severe'}
+                
+                ws.cell(row=row_num, column=1).value = record.created_at.strftime('%Y-%m-%d')
+                ws.cell(row=row_num, column=2).value = record.created_at.strftime('%H:%M:%S')
+                ws.cell(row=row_num, column=3).value = record.student.school_id
+                ws.cell(row=row_num, column=4).value = record.student.name
+                ws.cell(row=row_num, column=5).value = record.student.department
+                ws.cell(row=row_num, column=6).value = ', '.join(record.symptoms)
+                ws.cell(row=row_num, column=7).value = record.duration_days
+                ws.cell(row=row_num, column=8).value = severity_map.get(record.severity, 'Unknown')
+                ws.cell(row=row_num, column=9).value = record.predicted_disease
+                ws.cell(row=row_num, column=10).value = f"{record.confidence_score:.1%}" if record.confidence_score else 'N/A'
+                ws.cell(row=row_num, column=11).value = record.icd10_code or 'N/A'
+                ws.cell(row=row_num, column=12).value = 'Yes' if record.is_communicable else 'No'
+                ws.cell(row=row_num, column=13).value = 'Yes' if record.is_acute else 'No'
+                ws.cell(row=row_num, column=14).value = 'Yes' if record.requires_referral else 'No'
+            
+            # Auto-adjust column widths
+            for col_num, header in enumerate(headers, 1):
+                column_letter = get_column_letter(col_num)
+                max_length = len(header)
+                for row in ws[column_letter]:
+                    if row.value:
+                        max_length = max(max_length, len(str(row.value)))
+                ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+            
+            # Create HTTP response
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="cpsu_health_report_{timestamp}.xlsx"'
+            
+            wb.save(response)
+            return response
+            
+        except ImportError:
+            return Response(
+                {'error': 'Excel export requires openpyxl library. Install with: pip install openpyxl'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    else:  # CSV format
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="cpsu_health_report_{timestamp}.csv"'
+        
+        writer = csv.writer(response)
+        
+        # Write header
+        writer.writerow([
+            'Date', 'Time', 'Student ID', 'Student Name', 'Department',
+            'Symptoms', 'Duration (days)', 'Severity', 'Predicted Disease',
+            'Confidence', 'ICD-10 Code', 'Communicable', 'Acute',
+            'Requires Referral'
+        ])
+        
+        # Write data rows
+        severity_map = {1: 'Mild', 2: 'Moderate', 3: 'Severe'}
+        
+        for record in queryset:
+            writer.writerow([
+                record.created_at.strftime('%Y-%m-%d'),
+                record.created_at.strftime('%H:%M:%S'),
+                record.student.school_id,
+                record.student.name,
+                record.student.department,
+                ', '.join(record.symptoms),
+                record.duration_days,
+                severity_map.get(record.severity, 'Unknown'),
+                record.predicted_disease,
+                f"{record.confidence_score:.1%}" if record.confidence_score else 'N/A',
+                record.icd10_code or 'N/A',
+                'Yes' if record.is_communicable else 'No',
+                'Yes' if record.is_acute else 'No',
+                'Yes' if record.requires_referral else 'No'
+            ])
+        
+        return response
 
 
 # ============================================================================
@@ -1391,12 +1605,11 @@ def staff_analytics(request):
         count=Count('id')
     ).order_by('-count')
     
-    # Symptom severity distribution (mock data based on confidence)
+    # Symptom severity distribution (using actual severity field: 1=Mild, 2=Moderate, 3=Severe)
     severity_distribution = {
-        'mild': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__lt=0.5).count(),
-        'moderate': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.5, confidence_score__lt=0.75).count(),
-        'severe': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.75, confidence_score__lt=0.9).count(),
-        'critical': SymptomRecord.objects.filter(created_at__date__gte=start_date, confidence_score__gte=0.9).count(),
+        'mild': SymptomRecord.objects.filter(created_at__date__gte=start_date, severity=1).count(),
+        'moderate': SymptomRecord.objects.filter(created_at__date__gte=start_date, severity=2).count(),
+        'severe': SymptomRecord.objects.filter(created_at__date__gte=start_date, severity=3).count(),
     }
     
     # Most common symptoms

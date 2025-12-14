@@ -85,9 +85,9 @@ class ActionPredictDisease(Action):
                 json={
                     "symptoms": normalized_symptoms,
                     "sender_id": sender_id,
-                    "generate_insights": True  # Enable LLM validation
+                    "generate_insights": True  # Enable ML+LLM hybrid validation for reliable output
                 },
-                timeout=30  # Increased for ML + LLM validation
+                timeout=60  # Increased timeout for ML + LLM validation
             )
             
             if response.status_code == 200:
@@ -124,10 +124,29 @@ class ActionPredictDisease(Action):
                 message += "\n⚕️ **Important**: This is an AI-based assessment. "
                 message += "Please visit the CPSU clinic for proper medical diagnosis and treatment."
                 
-                dispatcher.utter_message(text=message)
-                
                 # Get top 3 alternative predictions
                 top_predictions = data.get('top_predictions', [])
+                
+                # Send diagnosis message with custom data for Django to save
+                dispatcher.utter_message(
+                    text=message,
+                    custom={
+                        "diagnosis": {
+                            "predicted_disease": predicted_disease,
+                            "confidence": confidence,
+                            "symptoms": normalized_symptoms,
+                            "description": description,
+                            "precautions": precautions,
+                            "is_communicable": is_communicable,
+                            "is_acute": data.get('is_acute', False),
+                            "icd10_code": data.get('icd10_code', ''),
+                            "top_predictions": top_predictions,
+                            "duration_days": 1,  # Default, can be improved with slot tracking
+                            "severity": "moderate"  # Default, can be improved with slot tracking
+                        }
+                    }
+                )
+                
                 if len(top_predictions) > 1:
                     alternatives = "\n\n**Other Possibilities**:\n"
                     for pred in top_predictions[1:3]:  # Skip first (already shown)

@@ -32,7 +32,7 @@ class RasaChatService:
         # Rasa server configuration
         self.rasa_url = getattr(settings, 'RASA_SERVER_URL', 'http://localhost:5005')
         self.rasa_enabled = getattr(settings, 'RASA_ENABLED', True)
-        self.rasa_timeout = getattr(settings, 'RASA_TIMEOUT', 5)  # seconds
+        self.rasa_timeout = getattr(settings, 'RASA_TIMEOUT', 60)  # 60 seconds for ML+LLM validation
         
         # Confidence threshold for Rasa responses
         self.confidence_threshold = getattr(settings, 'RASA_CONFIDENCE_THRESHOLD', 0.6)
@@ -83,24 +83,41 @@ class RasaChatService:
                     # Combine multiple responses if any
                     combined_text = " ".join([r.get("text", "") for r in rasa_responses if "text" in r])
                     
-                    # Check for buttons, images, etc.
+                    if not combined_text:
+                        self.logger.warning(f"Rasa returned response but no text content: {rasa_responses}")
+                        return None
+                    
+                    # Check for buttons, images, custom data, etc.
                     buttons = []
+                    custom_data = {}
                     for r in rasa_responses:
                         if "buttons" in r:
                             buttons.extend(r["buttons"])
+                        # Extract custom/json_message data (contains diagnosis info)
+                        if "custom" in r:
+                            custom_data.update(r["custom"])
+                        if "json_message" in r:
+                            custom_data.update(r["json_message"])
                     
                     # Get confidence if available
                     confidence = rasa_responses[0].get("confidence", 1.0)
+                    
+                    self.logger.info(f"Rasa response received: {combined_text[:50]}... (confidence: {confidence:.2f})")
+                    if custom_data:
+                        self.logger.info(f"Rasa custom data received: {list(custom_data.keys())}")
                     
                     return {
                         "text": combined_text,
                         "confidence": confidence,
                         "buttons": buttons,
+                        "custom": custom_data,  # Include custom data with diagnosis
                         "metadata": rasa_responses[0].get("metadata", {}),
                         "source": "rasa"
                     }
                 else:
-                    self.logger.warning("Rasa returned empty response")
+                    self.logger.warning("Rasa returned empty response - agent may not be trained/loaded")
+                    self.logger.warning("Check Rasa logs: 'Ignoring message as there is no agent to handle it'")
+                    self.logger.warning("Solution: Train model with 'rasa train' and restart Rasa server")
                     return None
             else:
                 self.logger.error(f"Rasa server error: {response.status_code}")

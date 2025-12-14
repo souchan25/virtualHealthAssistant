@@ -224,6 +224,25 @@ class SymptomRecord(models.Model):
         return self.requires_referral
 
 
+class FollowUpManager(models.Manager):
+    """Custom manager that auto-updates overdue follow-ups"""
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Auto-update overdue follow-ups on every query
+        from datetime import date
+        qs.filter(status='pending', scheduled_date__lt=date.today()).update(status='overdue')
+        return qs
+    
+    def pending_or_overdue(self):
+        """Get all follow-ups that need attention"""
+        return self.get_queryset().filter(status__in=['pending', 'overdue'])
+    
+    def needs_response(self, student):
+        """Get follow-ups for a specific student that need response"""
+        return self.pending_or_overdue().filter(student=student)
+
+
 class FollowUp(models.Model):
     """
     Automated follow-up tracking for symptom reports
@@ -315,6 +334,9 @@ class FollowUp(models.Model):
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Custom manager with auto-overdue check
+    objects = FollowUpManager()
     
     class Meta:
         db_table = 'follow_ups'

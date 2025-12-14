@@ -1,6 +1,7 @@
 # Django Framework
 Django>=4.2,<5.0
 django-cors-headers>=4.3.0
+django-jazzmin>=2.6.0  # Modern admin interface
 
 # Django REST Framework
 djangorestframework>=3.14.0

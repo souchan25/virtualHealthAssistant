@@ -42,7 +42,7 @@ class MLPredictor:
                     model_data = pickle.load(f)
                 self.model = model_data['model']
                 self.feature_names = model_data['feature_names']
-                print(f"✓ Loaded ML model from {model_path}")
+                print(f"[OK] Loaded ML model from {model_path}")
             else:
                 # Fallback to v1 model
                 fallback_path = model_path.parent / 'disease_predictor.pkl'
@@ -50,9 +50,9 @@ class MLPredictor:
                     model_data = pickle.load(f)
                 self.model = model_data['model']
                 self.feature_names = model_data['feature_names']
-                print(f"✓ Loaded ML model from {fallback_path}")
+                print(f"[OK] Loaded ML model from {fallback_path}")
         except Exception as e:
-            print(f"⚠️  Error loading ML model: {e}")
+            print(f"[ERROR] Error loading ML model: {e}")
             raise
     
     def _load_metadata(self):
@@ -85,9 +85,9 @@ class MLPredictor:
                     ]
                     self.precaution_dict[disease] = precautions
             
-            print("✓ Loaded disease metadata")
+            print("[OK] Loaded disease metadata")
         except Exception as e:
-            print(f"⚠️  Error loading metadata: {e}")
+            print(f"[WARN] Error loading metadata: {e}")
     
     def predict(self, symptoms: List[str]) -> Dict:
         """
@@ -118,8 +118,9 @@ class MLPredictor:
         # Get prediction
         prediction = self.model.predict(input_vector.reshape(1, -1))[0]
         
-        # Get confidence scores
+        # Get confidence scores (initialize empty list first)
         top_predictions = []
+        
         if hasattr(self.model, 'predict_proba'):
             proba = self.model.predict_proba(input_vector.reshape(1, -1))[0]
             top_3_idx = np.argsort(proba)[::-1][:3]
@@ -131,6 +132,12 @@ class MLPredictor:
                     'disease': disease,
                     'confidence': confidence
                 })
+        else:
+            # Fallback if model doesn't support probability
+            top_predictions.append({
+                'disease': prediction,
+                'confidence': 0.85  # Default confidence for non-probabilistic models
+            })
         
         # Get disease information
         description = self.description_dict.get(prediction, '')
@@ -197,79 +204,6 @@ class MLPredictor:
         return self.feature_names if self.feature_names else []
 
 
-class AIInsightGenerator:
-    """
-    Generate health insights using AI (placeholder for LLM integration)
-    In production, this would call OpenAI/Anthropic API
-    """
-    
-    def generate_insights(self, symptoms: List[str], disease: str, session_id: str) -> List[Dict]:
-        """
-        Generate top 3 health insights for current session
-        
-        Args:
-            symptoms: List of symptoms reported
-            disease: Predicted disease
-            session_id: Current chat session ID
-        
-        Returns:
-            List of insights with references and reliability scores
-        """
-        # TODO: Replace with actual LLM API call
-        # For now, return structured placeholder insights
-        
-        insights = [
-            {
-                'insight_text': f"Based on your symptoms ({', '.join(symptoms[:3])}), {disease} is most likely. Monitor your symptoms closely.",
-                'references': [
-                    'WHO Disease Guidelines 2024',
-                    'Mayo Clinic Symptom Checker'
-                ],
-                'reliability_score': 0.85
-            },
-            {
-                'insight_text': f"Stay hydrated and get adequate rest. These are crucial for recovery from {disease}.",
-                'references': [
-                    'CDC Health Recommendations',
-                    'Johns Hopkins Medicine'
-                ],
-                'reliability_score': 0.92
-            },
-            {
-                'insight_text': f"If symptoms persist for more than 3 days or worsen, seek medical attention immediately.",
-                'references': [
-                    'CPSU Clinic Protocol',
-                    'Emergency Medicine Guidelines'
-                ],
-                'reliability_score': 0.88
-            }
-        ]
-        
-        return insights[:3]  # Return top 3 only
-    
-    def chat_response(self, message: str, language: str = 'english') -> str:
-        """
-        Generate AI chat response (real-time, not stored)
-        
-        Args:
-            message: User message
-            language: Chat language (english, filipino, etc.)
-        
-        Returns:
-            AI-generated response
-        """
-        # TODO: Replace with actual LLM API call with language support
-        # For now, return placeholder response
-        
-        responses_by_language = {
-            'english': f"Thank you for sharing. Based on what you've told me, I recommend consulting with a healthcare professional. How can I assist you further?",
-            'filipino': f"Salamat sa pagbabahagi. Batay sa sinabi mo, inirerekomenda kong kumonsulta sa propesyonal sa kalusugan. Paano pa kita matutulungan?",
-            'tagalog': f"Salamat sa iyong mensahe. Inirerekomenda kong makipag-usap sa doktor. Ano pa ang maitutulong ko?",
-        }
-        
-        return responses_by_language.get(language, responses_by_language['english'])
-
-
 # Singleton instances
 _ml_predictor = None
 _ai_generator = None
@@ -284,7 +218,10 @@ def get_ml_predictor() -> MLPredictor:
 
 
 def get_ai_generator() -> AIInsightGenerator:
-    """Get AI insight generator singleton instance"""
+    """
+    Get AI insight generator singleton instance
+    Uses the real LLM-powered AIInsightGenerator from llm_service.py
+    """
     global _ai_generator
     if _ai_generator is None:
         _ai_generator = AIInsightGenerator()

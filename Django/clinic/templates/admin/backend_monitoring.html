@@ -1,0 +1,189 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Backend Monitoring - {{ site_title }}{% endblock %}
+
+{% block content %}
+<div style="padding: 20px;">
+    <h1 style="color: #006B3F; margin-bottom: 30px;">
+        📊 Backend Monitoring Dashboard
+    </h1>
+    
+    <!-- Last Updated -->
+    <p style="color: #6c757d; margin-bottom: 30px;">
+        Last updated: {{ last_updated|date:"M d, Y H:i:s" }}
+    </p>
+    
+    <!-- System Health -->
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #006B3F; margin-bottom: 20px;">🏥 System Health</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            {% for name, check in health_checks.items %}
+            <div style="padding: 15px; border-left: 4px solid {% if check.status == 'healthy' %}#28a745{% else %}#ffc107{% endif %}; background: #f8f9fa;">
+                <div style="font-weight: bold; margin-bottom: 5px;">{{ name }}</div>
+                <div style="color: {% if check.status == 'healthy' %}#28a745{% else %}#ffc107{% endif %}; font-weight: bold; margin-bottom: 5px;">
+                    {% if check.status == 'healthy' %}✓ Healthy{% else %}⚠ Warning{% endif %}
+                </div>
+                <div style="color: #6c757d; font-size: 13px;">{{ check.details }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- User Statistics -->
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #006B3F; margin-bottom: 20px;">👥 User Statistics</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div style="text-align: center; padding: 20px; background: #e3f2fd; border-radius: 8px;">
+                <div style="font-size: 36px; font-weight: bold; color: #006B3F;">{{ total_users }}</div>
+                <div style="color: #6c757d; margin-top: 5px;">Total Users</div>
+            </div>
+            <div style="text-align: center; padding: 20px; background: #e8f5e9; border-radius: 8px;">
+                <div style="font-size: 36px; font-weight: bold; color: #28a745;">{{ active_users_24h }}</div>
+                <div style="color: #6c757d; margin-top: 5px;">Active (24h)</div>
+            </div>
+            <div style="text-align: center; padding: 20px; background: #fff3cd; border-radius: 8px;">
+                <div style="font-size: 36px; font-weight: bold; color: #fd7e14;">{{ staff_count }}</div>
+                <div style="color: #6c757d; margin-top: 5px;">Clinic Staff</div>
+            </div>
+            <div style="text-align: center; padding: 20px; background: #f8d7da; border-radius: 8px;">
+                <div style="font-size: 36px; font-weight: bold; color: #dc3545;">{{ student_count }}</div>
+                <div style="color: #6c757d; margin-top: 5px;">Students</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- API Activity (Last 24h) -->
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #006B3F; margin-bottom: 20px;">🚀 API Activity (Last 24 Hours)</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="color: #6c757d; font-size: 13px; margin-bottom: 5px;">Total Requests</div>
+                <div style="font-size: 28px; font-weight: bold; color: #007bff;">{{ total_requests_24h }}</div>
+            </div>
+            <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="color: #6c757d; font-size: 13px; margin-bottom: 5px;">Failed Requests</div>
+                <div style="font-size: 28px; font-weight: bold; color: #dc3545;">{{ failed_requests_24h }}</div>
+            </div>
+            <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="color: #6c757d; font-size: 13px; margin-bottom: 5px;">Success Rate</div>
+                <div style="font-size: 28px; font-weight: bold; color: #28a745;">{{ success_rate_24h }}%</div>
+            </div>
+            <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="color: #6c757d; font-size: 13px; margin-bottom: 5px;">Failed Logins</div>
+                <div style="font-size: 28px; font-weight: bold; color: #721c24;">{{ failed_logins_24h }}</div>
+            </div>
+        </div>
+        
+        <!-- Action Breakdown -->
+        {% if action_stats %}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+            <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">Top Actions</h3>
+            <div style="display: grid; gap: 10px;">
+                {% for stat in action_stats %}
+                <div style="display: flex; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div style="flex: 1; font-weight: 500;">{{ stat.action|title }}</div>
+                    <div style="color: #006B3F; font-weight: bold;">{{ stat.count }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- LLM Providers -->
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #006B3F; margin-bottom: 20px;">🤖 LLM API Providers</h2>
+        <div style="display: grid; gap: 15px;">
+            {% for name, provider in llm_providers.items %}
+            <div style="padding: 15px; border: 1px solid #dee2e6; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">{{ name }}</div>
+                    <div style="color: #6c757d; font-size: 13px;">{{ provider.tier }}</div>
+                </div>
+                <div style="text-align: center; margin: 0 20px;">
+                    {% if provider.configured %}
+                    <span style="color: white; background-color: #28a745; padding: 5px 12px; border-radius: 4px; font-size: 12px; font-weight: bold;">✓ Configured</span>
+                    {% else %}
+                    <span style="color: white; background-color: #6c757d; padding: 5px 12px; border-radius: 4px; font-size: 12px;">Not Configured</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <a href="{{ provider.dashboard }}" target="_blank" style="color: #007bff; text-decoration: none; font-size: 13px;">
+                        View Dashboard →
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+            <strong>💡 Tip:</strong> Check provider dashboards weekly to monitor usage and avoid rate limits.
+            All providers are on FREE tier ($0/month cost).
+        </div>
+    </div>
+    
+    <!-- Recent Errors -->
+    {% if recent_errors %}
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #dc3545; margin-bottom: 20px;">❌ Recent Errors (Last 7 Days)</h2>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 12px; text-align: left; font-size: 13px;">Timestamp</th>
+                        <th style="padding: 12px; text-align: left; font-size: 13px;">User</th>
+                        <th style="padding: 12px; text-align: left; font-size: 13px;">Action</th>
+                        <th style="padding: 12px; text-align: left; font-size: 13px;">Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for error in recent_errors %}
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 12px; font-size: 13px; font-family: monospace;">
+                            {{ error.timestamp|date:"M d, H:i" }}
+                        </td>
+                        <td style="padding: 12px; font-size: 13px;">
+                            {% if error.user %}{{ error.user.school_id }}{% else %}-{% endif %}
+                        </td>
+                        <td style="padding: 12px; font-size: 13px;">
+                            <span style="color: white; background-color: #dc3545; padding: 2px 8px; border-radius: 3px; font-size: 11px;">
+                                {{ error.get_action_display }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px; font-size: 12px; color: #dc3545; font-family: monospace; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {{ error.error_message|truncatewords:15 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top: 15px; text-align: right;">
+            <a href="{% url 'admin:clinic_auditlog_changelist' %}?success__exact=0" style="color: #007bff; text-decoration: none; font-size: 13px;">
+                View All Errors in Audit Log →
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Actions -->
+    <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px;">
+        <h2 style="color: #006B3F; margin-bottom: 20px;">⚡ Quick Actions</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <a href="{% url 'admin:clinic_customuser_changelist' %}" style="padding: 15px; background: white; border: 1px solid #006B3F; border-radius: 8px; text-decoration: none; color: #006B3F; text-align: center; font-weight: 500; transition: background 0.3s;">
+                👤 Manage Users
+            </a>
+            <a href="{% url 'admin:clinic_auditlog_changelist' %}" style="padding: 15px; background: white; border: 1px solid #007bff; border-radius: 8px; text-decoration: none; color: #007bff; text-align: center; font-weight: 500; transition: background 0.3s;">
+                📋 View Audit Logs
+            </a>
+            <a href="{% url 'admin:clinic_customuser_add' %}" style="padding: 15px; background: white; border: 1px solid #28a745; border-radius: 8px; text-decoration: none; color: #28a745; text-align: center; font-weight: 500; transition: background 0.3s;">
+                ➕ Create Staff Account
+            </a>
+            <a href="javascript:location.reload();" style="padding: 15px; background: white; border: 1px solid #ffc107; border-radius: 8px; text-decoration: none; color: #856404; text-align: center; font-weight: 500; transition: background 0.3s;">
+                🔄 Refresh Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

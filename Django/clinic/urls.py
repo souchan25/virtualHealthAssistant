@@ -4,7 +4,7 @@ URL Configuration for Clinic app
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views, rasa_webhooks
+from . import views, rasa_webhooks, admin_views
 
 # Router for viewsets
 router = DefaultRouter()
@@ -65,6 +65,9 @@ urlpatterns = [
     path('followups/<uuid:pk>/respond/', views.followup_respond, name='followup-respond'),
     path('followups/<uuid:pk>/review/', views.followup_review, name='followup-review'),
     path('followups/needs-review/', views.followup_needs_review, name='followup-needs-review'),
+    
+    # Admin custom views
+    path('admin/monitoring/', admin_views.backend_monitoring_dashboard, name='admin-monitoring'),
     
     # Router URLs (viewsets)
     path('', include(router.urls)),

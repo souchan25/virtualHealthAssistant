@@ -6,7 +6,7 @@ Keep this file short, concrete, and tied to the actual files present.
 # Copilot instructions — VirtualAssistant
 
 ## Summary
-**CPSU Virtual Health Assistant** — Full-stack health assistant with Django REST API, hybrid ML+LLM disease prediction, Rasa chatbot integration, and Vue.js frontend (planned) with CPSU Mighty Hornbills branding (Earls Green & Lemon Yellow).
+**CPSU Virtual Health Assistant** — Full-stack health assistant with Django REST API, hybrid ML+LLM disease prediction, Rasa chatbot integration, and Vue.js frontend with CPSU Mighty Hornbills branding (Earls Green & Lemon Yellow).
 
 ## 🚀 Quick Reference
 
@@ -31,10 +31,11 @@ cd Django && python manage.py test clinic
 
 **Critical Files:**
 - `Django/clinic/ml_service.py` — ML predictor (singleton pattern)
-- `Django/clinic/llm_service.py` — LLM fallback chain
+- `Django/clinic/llm_service.py` — LLM fallback chain  
 - `Django/clinic/rasa_webhooks.py` — Rasa ↔ Django integration
 - `ML/scripts/train_model_realistic.py` — ML training pipeline
-- `Rasa/actions/actions.py` — Rasa custom actions
+- `Rasa/actions/actions.py` — Rasa custom actions (Django webhook calls)
+- `Vue/src/services/api.ts` — Axios instance with token auto-injection
 
 **Environment Setup:**
 ```bash
@@ -175,7 +176,7 @@ curl -X POST http://localhost:8000/api/chat/message/ \
 ### Start Vue.js Frontend (Development)
 ```bash
 cd Vue
-npm install              # First time only
+npm install              # First time only (or use install.bat/install.sh)
 npm run dev              # http://localhost:5173 (Vite default)
 ```
 **Prerequisites:**
@@ -185,6 +186,7 @@ npm run dev              # http://localhost:5173 (Vite default)
    - `VITE_API_BASE_URL=http://localhost:8000/api`
    - `VITE_RASA_URL=http://localhost:5005` (optional)
 
+**Quick Install:** Run `install.bat` (Windows) or `install.sh` (Linux/Mac) for automated setup.  
 **Architecture:** Vue 3 + TypeScript + Vite + TailwindCSS + Pinia (state management) + Vue Router
 
 ## Project-Specific Patterns
@@ -226,9 +228,9 @@ if generate_insights:
 
 ```python
 # Provider priority (all FREE tier):
-1. Gemini 2.5 Flash       → Fast, reliable
-2. Gemini 2.5 Flash Lite  → Faster fallback
-3. Grok 2 (OpenRouter)    → Alternative perspective
+1. Gemini 2.5 Flash       → Fast, reliable (Google)
+2. Qwen 3 (OpenRouter)    → Fast, free alternative
+3. Grok 2 (Groq)          → Fast inference
 4. Cohere                 → Final fallback
 
 # Pattern: Try next provider on failure
@@ -351,8 +353,8 @@ Models are loaded once at first call (~2-3 seconds), then cached for all request
 - `Rasa/TESTING_GUIDE.md` — Test scenarios and examples
 
 **Helper Scripts:**
-- `start_rasa.sh` — Interactive script to check/start Django + Rasa services
-- `RASA_COMMANDS.md` — Quick reference for common Rasa commands
+- `scripts/start_rasa.sh` — Interactive script to check/start Django + Rasa services
+- `docs/guides/RASA_COMMANDS.md` — Quick reference for common Rasa commands
 
 **Documentation (read these!):**
 - `Django/docs/DOCUMENTATION_INDEX.md` — Complete navigation guide
@@ -607,6 +609,43 @@ export default {
 - `GET /staff/dashboard/` — Dashboard stats (total students, conditions, trends)
 - `GET /staff/students/` — Student directory with health records
 - `GET /staff/export/` — Export reports (CSV/Excel)
+
+## Common Troubleshooting
+
+**"ML model not found" error:**
+```bash
+cd ML/scripts && python train_model_realistic.py
+# Verify: ML/models/disease_predictor_v2.pkl exists
+```
+
+**Django won't start:**
+```bash
+source venv/Scripts/activate  # Activate virtual environment first
+cd Django && python manage.py migrate  # Run migrations
+python manage.py runserver
+```
+
+**Rasa not connecting to Django:**
+- Verify Django is running on `http://localhost:8000`
+- Check `RASA_SERVER_URL` in `Django/health_assistant/settings.py`
+- Test webhook: `curl -X POST http://localhost:8000/api/rasa/predict/ -H "Content-Type: application/json" -d '{"symptoms":["fever"]}'`
+
+**LLM validation failing:**
+- Check `.env` file has API keys (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `COHERE_API_KEY`)
+- LLM is optional - system works without it (ML-only mode)
+- Test with: `curl -X POST http://localhost:8000/api/rasa/predict/ -d '{"symptoms":["fever"],"generate_insights":true}'`
+
+**Vue.js can't connect to backend:**
+- Verify Django is running on `http://localhost:8000`
+- Check `.env` has `VITE_API_BASE_URL=http://localhost:8000/api`
+- Check browser console for CORS errors (CORS is enabled by default)
+
+**Database migrations failing:**
+```bash
+cd Django
+python manage.py makemigrations clinic
+python manage.py migrate
+```
 
 ## What NOT to Do
 

@@ -246,3 +246,6 @@ credentials/
 *.exe
 *.o
 *.so
+
+# Django tests cache
+Django/tests/__pycache__/

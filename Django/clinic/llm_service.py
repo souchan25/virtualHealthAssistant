@@ -1,12 +1,15 @@
 """
 LLM Integration Services for AI-powered health insights
-Supports multiple LLM providers: Gemini, Groq, and Cohere
+Supports multiple LLM providers: Gemini, OpenRouter (Qwen 3), Groq, and Cohere
 """
 
 import logging
+import re
 from typing import Dict, List
 from django.conf import settings
 import os
+import requests
+import json
 
 try:
     from google import genai
@@ -59,6 +62,14 @@ class AIInsightGenerator:
                 self.gemini_client = None
         else:
             self.logger.warning("Gemini not available - check API key or install google-genai")
+        
+        # Initialize OpenRouter (Qwen 3 free model)
+        self.openrouter_api_key = None
+        if hasattr(settings, 'OPENROUTER_API_KEY') and settings.OPENROUTER_API_KEY:
+            self.openrouter_api_key = settings.OPENROUTER_API_KEY
+            self.logger.info("OpenRouter API key configured (Qwen 3 free model)")
+        else:
+            self.logger.warning("OpenRouter not available - check OPENROUTER_API_KEY")
             
         # Initialize Groq (direct API, not OpenRouter)
         self.groq_client = None
@@ -91,7 +102,7 @@ class AIInsightGenerator:
     def generate_chat_response(self, message: str, context: dict = None) -> str:
         """
         Generate AI response for health chat using available LLM.
-        Tries Gemini first, then Groq, then Cohere.
+        Tries Groq first, then Qwen (OpenRouter), then Cohere, then Gemini.
         
         Args:
             message: User's message
@@ -111,9 +122,82 @@ Guidelines:
 - Be culturally sensitive to Filipino students
 - Never diagnose - only provide general health information"""
         
-        # Fallback chain: Gemini Flash → Groq → Cohere
+        # Fallback chain: Groq → Qwen (OpenRouter) → Cohere → Gemini
         
-        # Try Gemini 2.5 Flash (new API)
+        # Try Groq first (fast, free tier)
+        if self.groq_client:
+            try:
+                response = self.groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": message}
+                    ],
+                    temperature=0.6,
+                    max_tokens=1024,
+                    top_p=0.95
+                )
+                result = response.choices[0].message.content
+                if result and result.strip():
+                    self.logger.info("Response from Groq (Llama 3.3 70B)")
+                    return result
+                else:
+                    raise ValueError("Empty response from Groq")
+            except Exception as e:
+                self.logger.warning(f"Groq failed: {e}, trying OpenRouter...")
+        
+        # Try OpenRouter with Mistral free model
+        if self.openrouter_api_key:
+            try:
+                # Prepare payload - json parameter will properly escape all special characters
+                payload = {
+                    "model": "mistralai/devstral-2512:free",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": message}
+                    ],
+                    "temperature": 0.6,
+                    "max_tokens": 500
+                }
+                
+                response = requests.post(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.openrouter_api_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://cpsu-health-assistant.edu.ph",
+                        "X-Title": "CPSU Virtual Health Assistant",
+                    },
+                    json=payload,  # Use json parameter instead of data=json.dumps()
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result['choices'][0]['message']['content']
+                    if content and content.strip():
+                        self.logger.info("Response from OpenRouter (Mistral Devstral)")
+                        return content
+                    else:
+                        raise ValueError("Empty response from OpenRouter")
+                else:
+                    self.logger.warning(f"OpenRouter failed with status {response.status_code}, trying Cohere...")
+            except Exception as e:
+                self.logger.warning(f"OpenRouter failed: {e}, trying Cohere...")
+        
+        # Try Cohere
+        if self.cohere_client:
+            try:
+                response = self.cohere_client.chat(
+                    message=message,
+                    preamble=system_prompt
+                )
+                self.logger.info("Response from Cohere")
+                return response.text
+            except Exception as e:
+                self.logger.warning(f"Cohere failed: {e}, trying Gemini...")
+        
+        # Try Gemini as last fallback (rate limited)
         if self.gemini_client:
             try:
                 prompt = f"{system_prompt}\n\nUser message: {message}"
@@ -124,39 +208,10 @@ Guidelines:
                     model="gemini-2.5-flash",
                     contents=prompt
                 )
-                self.logger.info("Response from Gemini 2.5 Flash")
+                self.logger.info("Response from Gemini 2.5 Flash (last fallback)")
                 return response.text
             except Exception as e:
-                self.logger.warning(f"Gemini failed: {e}, trying Groq...")
-        
-        # Try Groq (fast inference)
-        if self.groq_client:
-            try:
-                response = self.groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",  # Fast, high quality
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": message}
-                    ],
-                    temperature=0.7,
-                    max_tokens=500
-                )
-                self.logger.info("Response from Groq (Llama 3.3)")
-                return response.choices[0].message.content
-            except Exception as e:
-                self.logger.warning(f"Groq failed: {e}, trying Cohere...")
-        
-        # Try Cohere as final fallback
-        if self.cohere_client:
-            try:
-                response = self.cohere_client.chat(
-                    message=message,
-                    preamble=system_prompt
-                )
-                self.logger.info("Response from Cohere")
-                return response.text
-            except Exception as e:
-                self.logger.error(f"Cohere error: {e}")
+                self.logger.error(f"Gemini (last fallback) failed: {e}")
         
         # Ultimate fallback
         return "Thank you for your message. Based on your symptoms, I recommend consulting with our clinic staff for proper evaluation."
@@ -173,53 +228,118 @@ Guidelines:
         Returns:
             List of insights (max 3)
         """
-        # Build prompt for insight generation
-        prompt = f"""Generate 3 brief health insights for a CPSU student with these symptoms: {', '.join(symptoms)}
-
-Predicted condition: {predictions.get('top_disease', 'Unknown')}
-Confidence: {predictions.get('confidence', 0):.1%}
-
-Provide insights in these categories:
-1. Prevention tips (culturally appropriate for Filipino students)
-2. Monitoring guidelines
-3. When to seek medical attention
-
-Format each insight as a brief, actionable statement."""
+        disease = predictions.get('predicted_disease') or predictions.get('top_disease', 'Unknown')
+        confidence = predictions.get('confidence_score') or predictions.get('confidence', 0)
         
-        # Try Gemini first (new API)
-        if self.gemini_client:
+        # Build prompt for insight generation with structured JSON output
+        prompt = f"""You are a health assistant for CPSU (Central Philippine State University) students in the Philippines.
+
+Generate 3 health insights for a student with these symptoms: {', '.join(symptoms)}
+Predicted condition: {disease} (confidence: {confidence:.0%})
+
+Respond ONLY with a JSON array in this exact format:
+[
+  {{"category": "Prevention", "text": "Brief prevention tip culturally appropriate for Filipino students"}},
+  {{"category": "Monitoring", "text": "What symptoms to monitor and when to be concerned"}},
+  {{"category": "Medical Advice", "text": "When to visit the CPSU campus clinic"}}
+]
+
+Keep each insight under 100 words. Be culturally sensitive to Filipino students."""
+
+        # Try providers in order: Groq → OpenRouter → Cohere → Gemini
+        insights_text = None
+        
+        # Try Groq first
+        if self.groq_client:
+            try:
+                response = self.groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.5,
+                    max_tokens=800
+                )
+                insights_text = response.choices[0].message.content
+                self.logger.info("Health insights from Groq")
+            except Exception as e:
+                self.logger.warning(f"Groq insights failed: {e}")
+        
+        # Try OpenRouter
+        if not insights_text and self.openrouter_api_key:
+            try:
+                response = requests.post(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.openrouter_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "mistralai/devstral-2512:free",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.5,
+                        "max_tokens": 800
+                    },
+                    timeout=30
+                )
+                if response.status_code == 200:
+                    insights_text = response.json()['choices'][0]['message']['content']
+                    self.logger.info("Health insights from OpenRouter")
+            except Exception as e:
+                self.logger.warning(f"OpenRouter insights failed: {e}")
+        
+        # Try Gemini
+        if not insights_text and self.gemini_client:
             try:
                 response = self.gemini_client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=prompt
                 )
                 insights_text = response.text
-                
-                # Parse LLM response into structured insights
-                insights = [
-                    {
-                        'category': 'Prevention',
-                        'text': f"Based on {predictions.get('top_disease', 'your symptoms')}, maintain good hygiene, proper nutrition, and adequate rest.",
-                        'reliability_score': 0.85
-                    },
-                    {
-                        'category': 'Monitoring',
-                        'text': "Monitor your condition. If symptoms worsen or persist beyond 3 days, seek medical attention.",
-                        'reliability_score': 0.90
-                    },
-                    {
-                        'category': 'Medical Advice',
-                        'text': f"Predicted: {predictions.get('top_disease', 'Unknown')}. Consult clinic staff for proper diagnosis and treatment.",
-                        'reliability_score': predictions.get('confidence', 0.7)
-                    }
-                ]
-                
-                return insights
+                self.logger.info("Health insights from Gemini")
             except Exception as e:
-                self.logger.error(f"Gemini insight generation error: {e}")
+                self.logger.warning(f"Gemini insights failed: {e}")
+        
+        # Parse LLM response into structured insights
+        if insights_text:
+            try:
+                return self._parse_insights_response(insights_text, disease, confidence)
+            except Exception as e:
+                self.logger.error(f"Failed to parse insights: {e}")
         
         # Fallback to basic insights
         return self._generate_fallback_insights(symptoms, predictions)
+    
+    def _parse_insights_response(self, insights_text: str, disease: str, confidence: float) -> list:
+        """Parse LLM response into structured insights"""
+        # Clean up response - extract JSON if wrapped in markdown
+        text = insights_text.strip()
+        if '```json' in text:
+            text = text.split('```json')[1].split('```')[0].strip()
+        elif '```' in text:
+            text = text.split('```')[1].split('```')[0].strip()
+        
+        # Try to find JSON array
+        if not text.startswith('['):
+            import re
+            json_match = re.search(r'\[[\s\S]*\]', text)
+            if json_match:
+                text = json_match.group(0)
+        
+        # Parse JSON
+        parsed = json.loads(text)
+        
+        # Add reliability scores based on category
+        reliability_map = {'Prevention': 0.85, 'Monitoring': 0.90, 'Medical Advice': confidence or 0.75}
+        
+        insights = []
+        for item in parsed[:3]:
+            category = item.get('category', 'General')
+            insights.append({
+                'category': category,
+                'text': item.get('text', ''),
+                'reliability_score': reliability_map.get(category, 0.80)
+            })
+        
+        return insights
     
     def _generate_fallback_insights(self, symptoms: list, predictions: dict) -> list:
         """Generate basic insights without LLM"""
@@ -248,10 +368,10 @@ Format each insight as a brief, actionable statement."""
     
     def validate_ml_prediction(self, symptoms: List[str], ml_prediction: str, ml_confidence: float) -> Dict:
         """
-        Use LLM (Groq or Gemini) to validate ML prediction for added accuracy
+        Use LLM (Gemini, OpenRouter, or Groq) to validate ML prediction for added accuracy
         
         This creates a HYBRID system: ML for fast prediction + LLM for validation
-        Cost: FREE (uses Groq or Gemini free tier)
+        Cost: FREE (uses Gemini, OpenRouter Qwen 3, or Groq free tier)
         
         Returns:
         {
@@ -292,60 +412,169 @@ Be concise. Focus on medical accuracy."""
                     response = self.groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": prompt}],
-                        temperature=0.3,  # Lower for medical accuracy
-                        max_tokens=300
+                        temperature=0.3,
+                        max_tokens=500,
+                        top_p=0.95
                     )
                     
-                    result_text = response.choices[0].message.content.strip()
-                    self.logger.info(f"Groq validation: {result_text[:100]}")
+                    result_text = response.choices[0].message.content
                     
-                    # Parse JSON response
-                    import json
+                    # Check for empty response
+                    if not result_text or not result_text.strip():
+                        raise ValueError("Empty response from Groq API")
+                    
+                    result_text = result_text.strip()
+                    self.logger.info(f"Groq (Llama 3.3 70B) validation response: {result_text[:100]}")
+                    
                     # Extract JSON from markdown code blocks if present
                     if '```json' in result_text:
                         result_text = result_text.split('```json')[1].split('```')[0].strip()
                     elif '```' in result_text:
                         result_text = result_text.split('```')[1].split('```')[0].strip()
                     
-                    result = json.loads(result_text)
+                    # Try to find JSON object in response
+                    if not result_text.startswith('{'):
+                        # Look for JSON object pattern
+                        import re
+                        json_match = re.search(r'\{[^{}]*"agrees"[^{}]*\}', result_text, re.DOTALL)
+                        if json_match:
+                            result_text = json_match.group(0)
+                    
+                    # Validate JSON before parsing
+                    if not result_text or not result_text.startswith('{'):
+                        raise ValueError(f"No valid JSON found in response: {result_text[:50]}")
+                    
+                    result_json = json.loads(result_text)
                     
                     return {
-                        'agrees_with_ml': result.get('agrees', True),
-                        'confidence_boost': max(-0.15, min(0.15, result.get('confidence_adjustment', 0.0))),
-                        'reasoning': result.get('reasoning', 'LLM validation completed'),
-                        'alternative_diagnosis': result.get('alternative_diagnosis')
+                        'agrees_with_ml': result_json.get('agrees', True),
+                        'confidence_boost': max(-0.15, min(0.15, result_json.get('confidence_adjustment', 0.0))),
+                        'reasoning': result_json.get('reasoning', 'LLM validation completed'),
+                        'alternative_diagnosis': result_json.get('alternative_diagnosis')
                     }
                     
                 except Exception as groq_error:
-                    self.logger.warning(f"Groq validation failed, trying Gemini: {groq_error}")
+                    self.logger.warning(f"Groq validation failed, trying OpenRouter: {groq_error}")
             
-            # Fallback to Gemini (new API)
-            if self.gemini_client:
+            # Try OpenRouter with Mistral free model
+            if self.openrouter_api_key:
                 try:
-                    response = self.gemini_client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=prompt
-                    )
-                    result_text = response.text.strip()
-                    
-                    # Extract JSON from markdown code blocks if present
-                    if '```json' in result_text:
-                        result_text = result_text.split('```json')[1].split('```')[0].strip()
-                    elif '```' in result_text:
-                        result_text = result_text.split('```')[1].split('```')[0].strip()
-                    
-                    import json
-                    result = json.loads(result_text)
-                    
-                    return {
-                        'agrees_with_ml': result.get('agrees', True),
-                        'confidence_boost': max(-0.15, min(0.15, result.get('confidence_adjustment', 0.0))),
-                        'reasoning': result.get('reasoning', 'LLM validation completed'),
-                        'alternative_diagnosis': result.get('alternative_diagnosis')
+                    # Prepare payload - json.dumps will properly escape all special characters
+                    payload = {
+                        "model": "mistralai/devstral-2512:free",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.3,
+                        "max_tokens": 500
                     }
                     
-                except Exception as gemini_error:
-                    self.logger.warning(f"Gemini validation failed: {gemini_error}")
+                    response = requests.post(
+                        url="https://openrouter.ai/api/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {self.openrouter_api_key}",
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://cpsu-health-assistant.edu.ph",
+                            "X-Title": "CPSU Virtual Health Assistant",
+                        },
+                        json=payload,  # Use json parameter instead of data=json.dumps()
+                        timeout=30
+                    )
+                    
+                    if response.status_code == 200:
+                        response_json = response.json()
+                        result_text = response_json['choices'][0]['message']['content']
+                        
+                        # Check for empty response
+                        if not result_text or not result_text.strip():
+                            raise ValueError("Empty response from OpenRouter API")
+                        
+                        result_text = result_text.strip()
+                        
+                        # Extract JSON from markdown code blocks if present
+                        if '```json' in result_text:
+                            result_text = result_text.split('```json')[1].split('```')[0].strip()
+                        elif '```' in result_text:
+                            result_text = result_text.split('```')[1].split('```')[0].strip()
+                        
+                        # Try to find JSON object in response
+                        if not result_text.startswith('{'):
+                            json_match = re.search(r'\{[^{}]*"agrees"[^{}]*\}', result_text, re.DOTALL)
+                            if json_match:
+                                result_text = json_match.group(0)
+                        
+                        # Validate JSON before parsing
+                        if not result_text or not result_text.startswith('{'):
+                            raise ValueError(f"No valid JSON found in response: {result_text[:50]}")
+                        
+                        result_json = json.loads(result_text)
+                        self.logger.info(f"OpenRouter (Mistral) validation: agrees={result_json.get('agrees')}")
+                        
+                        return {
+                            'agrees_with_ml': result_json.get('agrees', True),
+                            'confidence_boost': max(-0.15, min(0.15, result_json.get('confidence_adjustment', 0.0))),
+                            'reasoning': result_json.get('reasoning', 'LLM validation completed'),
+                            'alternative_diagnosis': result_json.get('alternative_diagnosis')
+                        }
+                    else:
+                        self.logger.warning(f"OpenRouter failed with status {response.status_code}, trying Cohere...")
+                        
+                except Exception as openrouter_error:
+                    self.logger.warning(f"OpenRouter validation failed, trying Cohere: {openrouter_error}")
+            
+            # Try Cohere
+            if self.cohere_client:
+                try:
+                    # Cohere doesn't support structured JSON, so use simple text parsing
+                    simplified_prompt = f"""Given symptoms: {symptoms_str}
+ML predicted: {ml_prediction} ({ml_confidence:.0%})
+
+Do you agree with this prediction? Answer: yes/no and brief reason."""
+                    
+                    response = self.cohere_client.chat(
+                        message=simplified_prompt
+                    )
+                    
+                    result_text = response.text.lower()
+                    agrees = 'yes' in result_text or 'agree' in result_text or 'correct' in result_text
+                    
+                    self.logger.info(f"Cohere validation: agrees={agrees}")
+                    
+                    return {
+                        'agrees_with_ml': agrees,
+                        'confidence_boost': 0.05 if agrees else -0.05,
+                        'reasoning': response.text[:200],
+                        'alternative_diagnosis': None
+                    }
+                    
+                except Exception as cohere_error:
+                    self.logger.warning(f"Cohere validation failed, trying Gemini: {cohere_error}")
+            
+            # Try Gemini as last resort (rate limited)
+            # if self.gemini_client:
+            #     try:
+            #         response = self.gemini_client.models.generate_content(
+            #             model="gemini-2.5-flash",
+            #             contents=prompt
+            #         )
+            #         result_text = response.text.strip()
+                    
+            #         # Extract JSON from markdown code blocks if present
+            #         if '```json' in result_text:
+            #             result_text = result_text.split('```json')[1].split('```')[0].strip()
+            #         elif '```' in result_text:
+            #             result_text = result_text.split('```')[1].split('```')[0].strip()
+                    
+            #         result_json = json.loads(result_text)
+            #         self.logger.info(f"Gemini validation (last resort): agrees={result_json.get('agrees')}")
+                    
+            #         return {
+            #             'agrees_with_ml': result_json.get('agrees', True),
+            #             'confidence_boost': max(-0.15, min(0.15, result_json.get('confidence_adjustment', 0.0))),
+            #             'reasoning': result_json.get('reasoning', 'LLM validation completed'),
+            #             'alternative_diagnosis': result_json.get('alternative_diagnosis')
+            #         }
+                    
+            #     except Exception as gemini_error:
+            #         self.logger.warning(f"Gemini validation (last resort) failed: {gemini_error}")
             
             # If all LLMs fail, return neutral validation
             return {

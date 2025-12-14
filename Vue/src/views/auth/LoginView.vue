@@ -108,7 +108,7 @@ async function handleLogin() {
   if (success) {
     // Redirect based on user role
     const user = authStore.user
-    if (user?.role === 'staff') {
+    if (user?.role === 'clinic_staff' || user?.role === 'dev') {
       router.push('/staff')
     } else {
       const redirect = route.query.redirect as string || '/dashboard'

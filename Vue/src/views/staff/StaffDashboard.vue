@@ -2,19 +2,19 @@
   <div class="min-h-screen bg-gray-50">
     <!-- Navigation -->
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
-      <div class="container mx-auto px-6 py-4">
+      <div class="container mx-auto px-4 sm:px-6 py-4">
         <div class="flex justify-between items-center mb-4">
-          <div class="flex items-center space-x-4">
-            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-14 w-14 object-contain">
+          <div class="flex items-center space-x-2 sm:space-x-4">
+            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-10 w-10 sm:h-14 sm:w-14 object-contain">
             <div>
-              <h1 class="text-2xl font-heading font-bold text-cpsu-green">CPSU Health Clinic</h1>
-              <p class="text-sm text-gray-600">Staff Dashboard - {{ authStore.user?.name }}</p>
+              <h1 class="text-lg sm:text-2xl font-heading font-bold text-cpsu-green">CPSU Health Clinic</h1>
+              <p class="text-xs sm:text-sm text-gray-600">Staff Dashboard - {{ authStore.user?.name }}</p>
             </div>
           </div>
-          <button @click="handleLogout" class="btn-outline !py-2 !px-4">Logout</button>
+          <button @click="handleLogout" class="btn-outline !py-2 !px-3 sm:!px-4 text-sm">Logout</button>
         </div>
-        <!-- Navigation Menu -->
-        <div class="flex items-center space-x-4 border-t pt-3">
+        <!-- Navigation Menu - Desktop -->
+        <div class="hidden lg:flex items-center space-x-4 border-t pt-3">
           <router-link to="/staff" class="text-gray-700 hover:text-cpsu-green font-medium">
             📊 Dashboard
           </router-link>
@@ -37,11 +37,37 @@
             📉 Analytics
           </router-link>
         </div>
+        <!-- Navigation Menu - Mobile -->
+        <div class="lg:hidden border-t pt-3 overflow-x-auto">
+          <div class="flex space-x-3 min-w-max">
+            <router-link to="/staff" class="text-gray-700 hover:text-cpsu-green font-medium text-sm whitespace-nowrap">
+              📊 Dashboard
+            </router-link>
+            <router-link to="/staff/emergencies" class="text-gray-700 hover:text-cpsu-green font-medium text-sm whitespace-nowrap">
+              🚨 Emergencies
+            </router-link>
+            <router-link to="/staff/students" class="text-gray-700 hover:text-cpsu-green font-medium text-sm whitespace-nowrap">
+              👥 Students
+            </router-link>
+            <router-link to="/staff/prescribe" class="text-gray-700 hover:text-cpsu-green font-medium text-sm whitespace-nowrap">
+              💊 Prescribe
+            </router-link>
+            <router-link to="/staff/adherence" class="text-gray-700 hover:text-cpsu-green font-medium text-sm whitespace-nowrap">
+              📈 Adherence
+            </router-link>
+            <router-link to="/staff/followups" class="text-gray-700 hover:text-cpsu-green font-medium text-sm whitespace-nowrap">
+              📋 Follow-Ups
+            </router-link>
+            <router-link to="/staff/analytics" class="text-gray-700 hover:text-cpsu-green font-medium text-sm whitespace-nowrap">
+              📉 Analytics
+            </router-link>
+          </div>
+        </div>
       </div>
     </nav>
 
     <!-- Main Content -->
-    <div class="container mx-auto px-6 py-8">
+    <div class="container mx-auto px-4 sm:px-6 py-8">
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-cpsu-green border-t-transparent"></div>

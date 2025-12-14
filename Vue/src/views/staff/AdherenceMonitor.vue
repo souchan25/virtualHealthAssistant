@@ -275,10 +275,18 @@ const fetchAdherenceData = async () => {
   error.value = null
 
   try {
-    // This would ideally be a dedicated endpoint like /staff/adherence/
-    // For now, we'll use the students endpoint and filter
-    const response = await api.get('/staff/students/')
-    students.value = (response.data.students || []).filter((s: any) => s.on_medication)
+    // Get students with medication data
+    const response = await api.get('/staff/students/', {
+      params: { has_symptoms: 'true' }
+    })
+    
+    // Filter students who are on medication (have active medications)
+    const allStudents = Array.isArray(response.data) ? response.data : (response.data.students || [])
+    students.value = allStudents.filter((s: any) => 
+      s.active_medications && s.active_medications > 0 && s.adherence_rate !== null
+    )
+    
+    console.log('Adherence data loaded:', students.value.length, 'students')
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Failed to load adherence data'
     console.error('Error fetching adherence data:', err)

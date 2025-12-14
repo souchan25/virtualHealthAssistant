@@ -12,12 +12,13 @@
       
       <select v-model="filters.department" @change="loadStudents" class="input-field">
         <option value="">All Departments</option>
-        <option value="CCS">College of Computer Studies</option>
-        <option value="CBA">College of Business Administration</option>
-        <option value="CTE">College of Teacher Education</option>
-        <option value="COED">College of Education</option>
-        <option value="CAS">College of Arts and Sciences</option>
-        <option value="COE">College of Engineering</option>
+        <option value="College of Agriculture and Forestry">College of Agriculture and Forestry</option>
+        <option value="College of Teacher Education">College of Teacher Education</option>
+        <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+        <option value="College of Hospitality Management">College of Hospitality Management</option>
+        <option value="College of Engineering">College of Engineering</option>
+        <option value="College of Computer Studies">College of Computer Studies</option>
+        <option value="College of Criminal Justice Education">College of Criminal Justice Education</option>
       </select>
       
       <select v-model="filters.has_symptoms" @change="loadStudents" class="input-field">

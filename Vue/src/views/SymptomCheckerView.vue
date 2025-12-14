@@ -2,13 +2,13 @@ c<template>
   <div class="min-h-screen bg-gray-50">
     <!-- Navigation Header -->
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
-      <div class="container mx-auto px-6 py-4">
+      <div class="container mx-auto px-4 sm:px-6 py-4">
         <div class="flex justify-between items-center">
           <router-link to="/dashboard" class="text-cpsu-green">
-            <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
-            <p class="text-sm text-gray-600">Mighty Hornbills</p>
+            <h1 class="text-lg sm:text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+            <p class="text-xs sm:text-sm text-gray-600">Mighty Hornbills</p>
           </router-link>
-          <div class="flex items-center space-x-4">
+          <div class="hidden lg:flex items-center space-x-4">
             <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
             <router-link to="/symptom-checker" class="text-cpsu-green font-semibold">Check Symptoms</router-link>
             <router-link to="/medications" class="text-gray-700 hover:text-cpsu-green">Medications</router-link>
@@ -18,12 +18,26 @@ c<template>
             <router-link to="/history" class="text-gray-700 hover:text-cpsu-green">History</router-link>
             <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green">Profile</router-link>
           </div>
+          <button class="lg:hidden text-cpsu-green text-2xl" @click="mobileMenuOpen = !mobileMenuOpen">
+            ☰
+          </button>
+        </div>
+        <!-- Mobile Menu -->
+        <div v-if="mobileMenuOpen" class="lg:hidden mt-4 pb-4 space-y-2">
+          <router-link to="/dashboard" class="block py-2 text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
+          <router-link to="/symptom-checker" class="block py-2 text-cpsu-green font-semibold">Check Symptoms</router-link>
+          <router-link to="/medications" class="block py-2 text-gray-700 hover:text-cpsu-green">Medications</router-link>
+          <router-link to="/followups" class="block py-2 text-gray-700 hover:text-cpsu-green">Follow-Ups</router-link>
+          <router-link to="/health-dashboard" class="block py-2 text-gray-700 hover:text-cpsu-green">Analytics</router-link>
+          <router-link to="/chat" class="block py-2 text-gray-700 hover:text-cpsu-green">Chat</router-link>
+          <router-link to="/history" class="block py-2 text-gray-700 hover:text-cpsu-green">History</router-link>
+          <router-link to="/profile" class="block py-2 text-gray-700 hover:text-cpsu-green">Profile</router-link>
         </div>
       </div>
     </nav>
 
     <!-- Main Content -->
-    <div class="container mx-auto px-6 py-8 max-w-4xl">
+    <div class="container mx-auto px-6 py-8 max-w-7xl">
       <div class="mb-8">
         <router-link to="/dashboard" class="text-cpsu-green hover:underline mb-4 inline-block">
           ← Back to Dashboard
@@ -34,21 +48,21 @@ c<template>
 
       <!-- Step Indicator -->
       <div class="mb-8">
-        <div class="flex items-center justify-center space-x-4">
+        <div class="flex items-center justify-center space-x-2 sm:space-x-4">
           <div :class="['flex items-center', currentStep >= 1 ? 'text-cpsu-green' : 'text-gray-400']">
-            <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold"
+            <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base"
                  :class="currentStep >= 1 ? 'border-cpsu-green bg-cpsu-green text-white' : 'border-gray-400'">
               1
             </div>
-            <span class="ml-2 font-medium">Select Symptoms</span>
+            <span class="ml-2 font-medium text-sm sm:text-base">Select Symptoms</span>
           </div>
-          <div class="w-12 h-1 bg-gray-300" :class="{ 'bg-cpsu-green': currentStep >= 2 }"></div>
+          <div class="w-8 sm:w-12 h-1 bg-gray-300" :class="{ 'bg-cpsu-green': currentStep >= 2 }"></div>
           <div :class="['flex items-center', currentStep >= 2 ? 'text-cpsu-green' : 'text-gray-400']">
-            <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold"
+            <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base"
                  :class="currentStep >= 2 ? 'border-cpsu-green bg-cpsu-green text-white' : 'border-gray-400'">
               2
             </div>
-            <span class="ml-2 font-medium">Get Results</span>
+            <span class="ml-2 font-medium text-sm sm:text-base">Get Results</span>
           </div>
         </div>
       </div>
@@ -76,7 +90,7 @@ c<template>
               :key="symptom"
               class="px-3 py-1 bg-cpsu-green text-white rounded-full text-sm flex items-center gap-2"
             >
-              {{ symptom }}
+              {{ formatSymptomName(symptom) }}
               <button @click="symptomsStore.toggleSymptom(symptom)" class="hover:text-cpsu-yellow">✕</button>
             </span>
           </div>
@@ -87,7 +101,7 @@ c<template>
           <div class="spinner w-12 h-12 mx-auto"></div>
         </div>
 
-        <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
           <button
             v-for="symptom in filteredSymptoms"
             :key="symptom"
@@ -97,7 +111,7 @@ c<template>
               ? 'border-cpsu-green bg-cpsu-green text-white'
               : 'border-gray-300 hover:border-cpsu-green'"
           >
-            {{ symptom }}
+            {{ formatSymptomName(symptom) }}
           </button>
         </div>
 
@@ -209,6 +223,7 @@ const symptomsStore = useSymptomsStore()
 
 const currentStep = ref(1)
 const searchQuery = ref('')
+const mobileMenuOpen = ref(false)
 
 const filteredSymptoms = computed(() => {
   if (!searchQuery.value) {
@@ -248,6 +263,15 @@ function getConfidencePercent(): string {
   // Try confidence_score first (Django API), fallback to confidence, default to 0
   const confidence = result.confidence_score ?? result.confidence ?? 0
   return (confidence * 100).toFixed(1)
+}
+
+function formatSymptomName(symptom: string): string {
+  // Replace underscores with spaces and capitalize each word
+  return symptom
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 
 async function handleLogout() {

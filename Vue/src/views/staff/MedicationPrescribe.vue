@@ -42,7 +42,7 @@
 
     <!-- Main Content -->
     <div class="container mx-auto px-4 py-8">
-      <div class="max-w-4xl mx-auto">
+      <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="mb-8">
           <h2 class="text-3xl font-bold text-gray-900 mb-2">Prescribe Medication</h2>
@@ -311,14 +311,19 @@ const submitPrescription = async () => {
   try {
     // First, get student ID from school_id
     const studentResponse = await api.get('/staff/students/', {
-      params: { school_id: form.value.student_school_id }
+      params: { search: form.value.student_school_id }
     })
 
-    if (!studentResponse.data || studentResponse.data.length === 0) {
+    if (!studentResponse.data || !Array.isArray(studentResponse.data) || studentResponse.data.length === 0) {
       throw new Error('Student not found with this school ID')
     }
 
-    const studentId = studentResponse.data[0].id
+    const student = studentResponse.data[0]
+    if (!student || !student.id) {
+      throw new Error('Invalid student data received')
+    }
+
+    const studentId = student.id
 
     // Create prescription data
     const prescriptionData = {

@@ -2,16 +2,16 @@
   <div class="min-h-screen bg-gray-50">
     <!-- Navigation Header -->
     <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
-      <div class="container mx-auto px-6 py-4">
+      <div class="container mx-auto px-4 sm:px-6 py-4">
         <div class="flex justify-between items-center">
-          <router-link to="/dashboard" class="flex items-center space-x-4 text-cpsu-green">
-            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-12 w-12 object-contain">
+          <router-link to="/dashboard" class="flex items-center space-x-2 sm:space-x-4 text-cpsu-green">
+            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-10 w-10 sm:h-12 sm:w-12 object-contain">
             <div>
-              <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
-              <p class="text-sm text-gray-600">Mighty Hornbills</p>
+              <h1 class="text-lg sm:text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+              <p class="text-xs sm:text-sm text-gray-600">Mighty Hornbills</p>
             </div>
           </router-link>
-          <div class="flex items-center space-x-4">
+          <div class="hidden lg:flex items-center space-x-4">
             <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
             <router-link to="/symptom-checker" class="text-gray-700 hover:text-cpsu-green">Check Symptoms</router-link>
             <router-link to="/medications" class="text-gray-700 hover:text-cpsu-green">Medications</router-link>
@@ -21,13 +21,27 @@
             <router-link to="/history" class="text-gray-700 hover:text-cpsu-green">History</router-link>
             <router-link to="/profile" class="text-cpsu-green font-semibold">Profile</router-link>
           </div>
+          <button class="lg:hidden text-cpsu-green text-2xl" @click="mobileMenuOpen = !mobileMenuOpen">
+            ☰
+          </button>
+        </div>
+        <!-- Mobile Menu -->
+        <div v-if="mobileMenuOpen" class="lg:hidden mt-4 pb-4 space-y-2">
+          <router-link to="/dashboard" class="block py-2 text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
+          <router-link to="/symptom-checker" class="block py-2 text-gray-700 hover:text-cpsu-green">Check Symptoms</router-link>
+          <router-link to="/medications" class="block py-2 text-gray-700 hover:text-cpsu-green">Medications</router-link>
+          <router-link to="/followups" class="block py-2 text-gray-700 hover:text-cpsu-green">Follow-Ups</router-link>
+          <router-link to="/health-dashboard" class="block py-2 text-gray-700 hover:text-cpsu-green">Analytics</router-link>
+          <router-link to="/chat" class="block py-2 text-gray-700 hover:text-cpsu-green">Chat</router-link>
+          <router-link to="/history" class="block py-2 text-gray-700 hover:text-cpsu-green">History</router-link>
+          <router-link to="/profile" class="block py-2 text-cpsu-green font-semibold">Profile</router-link>
         </div>
       </div>
     </nav>
 
     <!-- Main Content -->
-    <div class="container mx-auto px-6 py-8 max-w-2xl">
-      <div class="mb-8">
+    <div class="container mx-auto px-6 py-8 max-w-7xl">
+      <div class="mb-6">
         <router-link to="/dashboard" class="text-cpsu-green hover:underline mb-4 inline-block">
           ← Back to Dashboard
         </router-link>
@@ -37,109 +51,111 @@
 
       <!-- Profile Form -->
       <div class="card">
-        <form @submit.prevent="handleUpdate" class="space-y-6">
-          <!-- Success Message -->
-          <div v-if="successMessage" class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-            {{ successMessage }}
+        <form @submit.prevent="handleUpdate">
+          <!-- Success/Error Messages -->
+          <div class="mb-4">
+            <div v-if="successMessage" class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-3">
+              {{ successMessage }}
+            </div>
+            <div v-if="authStore.error" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+              {{ authStore.error }}
+            </div>
           </div>
 
-          <!-- Error Message -->
-          <div v-if="authStore.error" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
-            {{ authStore.error }}
+          <!-- Form Fields in 2 Columns -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- School ID (Read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                School ID
+              </label>
+              <input
+                type="text"
+                :value="authStore.user?.school_id"
+                disabled
+                class="input-field bg-gray-100 cursor-not-allowed"
+              />
+              <p class="text-xs text-gray-500 mt-1">School ID cannot be changed</p>
+            </div>
+
+            <!-- Role (Read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Role
+              </label>
+              <input
+                type="text"
+                :value="authStore.user?.role"
+                disabled
+                class="input-field bg-gray-100 cursor-not-allowed"
+              />
+            </div>
+
+            <!-- Name -->
+            <div>
+              <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                Full Name
+              </label>
+              <input
+                id="name"
+                v-model="profileData.name"
+                type="text"
+                required
+                class="input-field"
+              />
+            </div>
+
+            <!-- Department -->
+            <div>
+              <label for="department" class="block text-sm font-medium text-gray-700 mb-2">
+                Department
+              </label>
+              <select
+                id="department"
+                v-model="profileData.department"
+                class="input-field"
+              >
+                <option value="">Select department</option>
+                <option>College of Agriculture and Forestry</option>
+                <option>College of Teacher Education</option>
+                <option>College of Arts and Sciences</option>
+                <option>College of Hospitality Management</option>
+                <option>College of Engineering</option>
+                <option>College of Computer Studies</option>
+                <option>College of Criminal Justice Education</option>
+              </select>
+            </div>
+
+            <!-- CPSU Address -->
+            <div>
+              <label for="cpsu-address" class="block text-sm font-medium text-gray-700 mb-2">
+                CPSU Address
+              </label>
+              <input
+                id="cpsu-address"
+                v-model="profileData.cpsu_address"
+                type="text"
+                class="input-field"
+                placeholder="e.g., Dorm Building A, Room 201"
+              />
+            </div>
+
+            <!-- Member Since -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Member Since
+              </label>
+              <input
+                type="text"
+                :value="formatDate(authStore.user?.date_joined)"
+                disabled
+                class="input-field bg-gray-100 cursor-not-allowed"
+              />
+            </div>
           </div>
 
-          <!-- School ID (Read-only) -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              School ID
-            </label>
-            <input
-              type="text"
-              :value="authStore.user?.school_id"
-              disabled
-              class="input-field bg-gray-100 cursor-not-allowed"
-            />
-            <p class="text-xs text-gray-500 mt-1">School ID cannot be changed</p>
-          </div>
-
-          <!-- Role (Read-only) -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Role
-            </label>
-            <input
-              type="text"
-              :value="authStore.user?.role"
-              disabled
-              class="input-field bg-gray-100 cursor-not-allowed"
-            />
-          </div>
-
-          <!-- Name -->
-          <div>
-            <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
-              Full Name
-            </label>
-            <input
-              id="name"
-              v-model="profileData.name"
-              type="text"
-              required
-              class="input-field"
-            />
-          </div>
-
-          <!-- Department -->
-          <div>
-            <label for="department" class="block text-sm font-medium text-gray-700 mb-2">
-              Department
-            </label>
-            <select
-              id="department"
-              v-model="profileData.department"
-              class="input-field"
-            >
-              <option value="">Select department</option>
-              <option>College of Agriculture and Forestry</option>
-              <option>College of Teacher Education</option>
-              <option>College of Arts and Sciences</option>
-              <option>College of Hospitality Management</option>
-              <option>College of Engineering</option>
-              <option>College of Computer Studies</option>
-              <option>College of Criminal Justice Education</option>
-            </select>
-          </div>
-
-          <!-- CPSU Address -->
-          <div>
-            <label for="cpsu-address" class="block text-sm font-medium text-gray-700 mb-2">
-              CPSU Address
-            </label>
-            <input
-              id="cpsu-address"
-              v-model="profileData.cpsu_address"
-              type="text"
-              class="input-field"
-              placeholder="e.g., Dorm Building A, Room 201"
-            />
-          </div>
-
-          <!-- Member Since -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Member Since
-            </label>
-            <input
-              type="text"
-              :value="formatDate(authStore.user?.date_joined)"
-              disabled
-              class="input-field bg-gray-100 cursor-not-allowed"
-            />
-          </div>
-
-          <!-- Data Consent Status -->
-          <div class="border-t pt-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Privacy & Data Consent</h3>
+          <!-- Data Consent Status -->\n          <div class="border-t pt-4 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">Privacy & Data Consent</h3>
             <div v-if="authStore.user?.data_consent_given" class="bg-green-50 border border-green-200 rounded-lg p-4">
               <div class="flex items-start">
                 <span class="text-green-600 text-xl mr-3">✓</span>
@@ -199,6 +215,7 @@ import api from '@/services/api'
 
 const authStore = useAuthStore()
 const successMessage = ref('')
+const mobileMenuOpen = ref(false)
 
 const profileData = ref({
   name: '',

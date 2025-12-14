@@ -12,7 +12,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Getters
   const isAuthenticated = computed(() => !!token.value && !!user.value)
-  const isStaff = computed(() => user.value?.role === 'staff')
   const userName = computed(() => user.value?.name || '')
 
   // Actions
@@ -142,7 +141,6 @@ export const useAuthStore = defineStore('auth', () => {
     loading,
     error,
     isAuthenticated,
-    isStaff,
     userName,
     login,
     register,
