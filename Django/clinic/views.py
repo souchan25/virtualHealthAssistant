@@ -1308,12 +1308,14 @@ def medication_create(request):
     # Log the prescription
     AuditLog.objects.create(
         user=request.user,
-        action='medication_prescribed',
-        details={
-            'medication_id': str(medication.id),
+        action='create',
+        model_name='Medication',
+        object_id=str(medication.id),
+        changes={
             'student': medication.student.school_id,
             'medication_name': medication.name,
-            'duration_days': (medication.end_date - medication.start_date).days + 1
+            'duration_days': (medication.end_date - medication.start_date).days + 1,
+            'schedule_times': medication.schedule_times,
         }
     )
     
@@ -1614,9 +1616,8 @@ def followup_needs_review(request):
     Get follow-ups that need staff review
     GET /api/followups/needs-review/
     """
-    # Get follow-ups needing staff attention
+    # Return all follow-ups; frontend filters for counts
     followups = FollowUp.objects.select_related('student', 'reviewed_by')\
-        .filter(status__in=['needs_review', 'pending'])\
         .order_by('-scheduled_date')
     
     # Enrich with student data
