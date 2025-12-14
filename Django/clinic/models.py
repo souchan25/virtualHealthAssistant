@@ -228,14 +228,19 @@ class FollowUpManager(models.Manager):
     """Custom manager that auto-updates overdue follow-ups"""
     
     def get_queryset(self):
-        qs = super().get_queryset()
-        # Auto-update overdue follow-ups on every query
+        return super().get_queryset()
+    
+    def update_overdue(self):
+        """Update all overdue follow-ups in the database"""
         from datetime import date
-        qs.filter(status='pending', scheduled_date__lt=date.today()).update(status='overdue')
-        return qs
+        return self.get_queryset().filter(
+            status='pending', 
+            scheduled_date__lt=date.today()
+        ).update(status='overdue')
     
     def pending_or_overdue(self):
-        """Get all follow-ups that need attention"""
+        """Get all follow-ups that need attention (auto-updates overdue status first)"""
+        self.update_overdue()  # Mark overdue items before querying
         return self.get_queryset().filter(status__in=['pending', 'overdue'])
     
     def needs_response(self, student):

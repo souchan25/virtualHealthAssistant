@@ -7,6 +7,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
 from django.db.models import Count, Q
 from django.utils import timezone
+from django.conf import settings
 from datetime import timedelta
 from clinic.models import AuditLog, CustomUser
 import os
@@ -95,8 +96,8 @@ def backend_monitoring_dashboard(request):
             'details': f'{total_users} total users'
         },
         'ML Model': {
-            'status': 'healthy' if os.path.exists('D:\\VirtualAssistant\\ML\\models\\disease_predictor_v2.pkl') else 'warning',
-            'details': 'Loaded' if os.path.exists('D:\\VirtualAssistant\\ML\\models\\disease_predictor_v2.pkl') else 'Not found'
+            'status': 'healthy' if settings.ML_MODEL_PATH.exists() else 'warning',
+            'details': 'Loaded' if settings.ML_MODEL_PATH.exists() else 'Not found'
         },
         'LLM Providers': {
             'status': 'healthy' if any(p['configured'] for p in llm_providers.values()) else 'warning',
