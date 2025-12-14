@@ -51,7 +51,9 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="card-bordered bg-white">
           <h3 class="text-sm font-semibold text-gray-600 mb-2">Needs Review</h3>
-          <p class="text-3xl font-bold text-red-600">{{ followups.filter(f => f.status === 'needs_review').length }}</p>
+          <p class="text-3xl font-bold text-red-600">
+            {{ followups.filter(f => ['needs_review', 'pending'].includes(f.status)).length }}
+          </p>
         </div>
         <div class="card-bordered bg-white">
           <h3 class="text-sm font-semibold text-gray-600 mb-2">Pending Response</h3>
@@ -146,18 +148,11 @@
             <!-- Action Buttons -->
             <div class="flex gap-3 pt-4 border-t">
               <button
-                v-if="followup.status === 'needs_review'"
+                v-if="['needs_review', 'pending'].includes(followup.status)"
                 @click="reviewFollowup(followup)"
                 class="btn-primary flex-1"
               >
                 📝 Review & Add Notes
-              </button>
-              <button
-                v-else-if="followup.status === 'pending'"
-                @click="viewFollowup(followup)"
-                class="btn-outline flex-1"
-              >
-                👁️ View Details
               </button>
               <button
                 v-else
