@@ -4,7 +4,7 @@ Implements all endpoints for student and clinic staff
 """
 
 from rest_framework import viewsets, status, generics
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, renderer_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
@@ -766,15 +766,28 @@ def student_directory(request):
     return Response({'students': students_data})
 
 
+from rest_framework.renderers import JSONRenderer, BaseRenderer
+
+class BinaryRenderer(BaseRenderer):
+    """Renderer for binary file downloads"""
+    media_type = 'application/octet-stream'
+    format = 'binary'
+    charset = None
+    render_style = 'binary'
+    
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return data
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsClinicStaff])
+@renderer_classes([JSONRenderer, BinaryRenderer])
 def export_report(request):
     """
     Export symptom data to Excel or CSV format
-    GET /api/staff/export/?format=csv|excel&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+    GET /api/staff/export/?format=csv|excel|json&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
     
     Query Parameters:
-        - format: 'csv' or 'excel' (default: csv)
+        - format: 'json', 'csv' or 'excel' (default: csv)
         - start_date: Filter records from this date (optional)
         - end_date: Filter records until this date (optional)
         - department: Filter by department (optional)
@@ -787,6 +800,9 @@ def export_report(request):
     # Get query parameters
     export_format = request.query_params.get('format', 'csv').lower()
     start_date = request.query_params.get('start_date')
+    
+    # Debug: confirm view is being called
+    print(f"[DEBUG] export_report called with format={export_format}")
     end_date = request.query_params.get('end_date')
     department = request.query_params.get('department')
     disease = request.query_params.get('disease')
@@ -836,11 +852,18 @@ def export_report(request):
         })
     
     if export_format == 'excel':
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Excel export requested with {queryset.count()} records")
+        print(f"[DEBUG] Excel export requested with {queryset.count()} records")
+        
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill
             from openpyxl.utils import get_column_letter
-        except ImportError:
+            print("[DEBUG] openpyxl imported successfully")
+        except ImportError as e:
+            print(f"[DEBUG] openpyxl import failed: {e}")
             return Response(
                 {'error': 'Excel export requires openpyxl. Install with: pip install openpyxl'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -910,6 +933,9 @@ def export_report(request):
             return response
             
         except Exception as e:
+            import traceback
+            print(f"[DEBUG] Excel export EXCEPTION: {e}")
+            traceback.print_exc()
             return Response(
                 {'error': f'Excel export failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -150,7 +150,10 @@ async function downloadReport() {
 
       const response = await api.get('/staff/export/', {
         params,
-        responseType: 'blob'
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/octet-stream'  // Binary file download
+        }
       })
 
       const ext = exportFormat.value === 'excel' ? 'xlsx' : 'csv'
