@@ -78,12 +78,12 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="(record, index) in reportData.data.slice(0, 10)" :key="index">
+              <tr v-for="(record, index) in (reportData?.data || []).slice(0, 10)" :key="index">
                 <td class="px-4 py-2 whitespace-nowrap">{{ formatDate(record.created_at) }}</td>
                 <td class="px-4 py-2 whitespace-nowrap">{{ record.student_id || 'N/A' }}</td>
                 <td class="px-4 py-2">{{ record.predicted_disease }}</td>
                 <td class="px-4 py-2 whitespace-nowrap">{{ (record.confidence_score * 100).toFixed(1) }}%</td>
-                <td class="px-4 py-2">{{ record.symptoms.slice(0, 3).join(', ') }}...</td>
+                <td class="px-4 py-2">{{ (record.symptoms || []).slice(0, 3).join(', ') }}{{ record.symptoms?.length > 3 ? '...' : '' }}</td>
               </tr>
             </tbody>
           </table>
@@ -166,20 +166,25 @@ function formatDate(dateStr: string): string {
 }
 
 const uniqueStudents = computed(() => {
-  if (!reportData.value) return 0
+  if (!reportData.value?.data || !Array.isArray(reportData.value.data)) return 0
   const studentIds = new Set(reportData.value.data.map((r: any) => r.student))
   return studentIds.size
 })
 
 const mostCommonDisease = computed(() => {
-  if (!reportData.value || reportData.value.data.length === 0) return 'N/A'
+  if (!reportData.value?.data || !Array.isArray(reportData.value.data) || reportData.value.data.length === 0) return 'N/A'
   
   const counts: Record<string, number> = {}
   reportData.value.data.forEach((r: any) => {
-    counts[r.predicted_disease] = (counts[r.predicted_disease] || 0) + 1
+    if (r.predicted_disease) {
+      counts[r.predicted_disease] = (counts[r.predicted_disease] || 0) + 1
+    }
   })
   
-  const max = Object.entries(counts).reduce((a, b) => a[1] > b[1] ? a : b)
+  const entries = Object.entries(counts)
+  if (entries.length === 0) return 'N/A'
+  
+  const max = entries.reduce((a, b) => a[1] > b[1] ? a : b)
   return `${max[0]} (${max[1]})`
 })
 </script>
