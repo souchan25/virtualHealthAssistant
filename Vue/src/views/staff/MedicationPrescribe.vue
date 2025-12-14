@@ -303,6 +303,14 @@ const resetForm = () => {
   successMessage.value = null
 }
 
+// Prefill from query param (when coming from Student Records)
+onMounted(() => {
+  const schoolIdFromQuery = route.query.student_id as string
+  if (schoolIdFromQuery) {
+    form.value.student_school_id = schoolIdFromQuery
+  }
+})
+
 const submitPrescription = async () => {
   loading.value = true
   error.value = null
@@ -314,11 +322,14 @@ const submitPrescription = async () => {
       params: { search: form.value.student_school_id }
     })
 
-    if (!studentResponse.data || !Array.isArray(studentResponse.data) || studentResponse.data.length === 0) {
+    const studentsData = studentResponse.data?.students || studentResponse.data || []
+    const studentList = Array.isArray(studentsData) ? studentsData : []
+
+    if (studentList.length === 0) {
       throw new Error('Student not found with this school ID')
     }
 
-    const student = studentResponse.data[0]
+    const student = studentList[0]
     if (!student || !student.id) {
       throw new Error('Invalid student data received')
     }
