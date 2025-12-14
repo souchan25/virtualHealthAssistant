@@ -3,7 +3,7 @@ export interface User {
   id: number
   school_id: string
   name: string
-  role: 'student' | 'staff'
+  role: 'student' | 'staff' | 'clinic_staff' | 'dev'
   department?: string
   cpsu_address?: string
   year_level?: number

@@ -244,7 +244,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '@/services/api'
 
 interface PrescriptionForm {
@@ -258,6 +259,8 @@ interface PrescriptionForm {
   instructions: string
   side_effects: string
 }
+
+const route = useRoute()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
