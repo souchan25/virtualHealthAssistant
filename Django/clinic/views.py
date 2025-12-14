@@ -840,6 +840,13 @@ def export_report(request):
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill
             from openpyxl.utils import get_column_letter
+        except ImportError:
+            return Response(
+                {'error': 'Excel export requires openpyxl. Install with: pip install openpyxl'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        try:
             
             # Create workbook
             wb = openpyxl.Workbook()
@@ -902,13 +909,13 @@ def export_report(request):
             wb.save(response)
             return response
             
-        except ImportError:
+        except Exception as e:
             return Response(
-                {'error': 'Excel export requires openpyxl library. Install with: pip install openpyxl'},
+                {'error': f'Excel export failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    else:  # CSV format
+    elif export_format == 'csv':  # CSV format
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="cpsu_health_report_{timestamp}.csv"'
         
@@ -944,6 +951,12 @@ def export_report(request):
             ])
         
         return response
+    
+    else:
+        return Response(
+            {'error': f'Unsupported format: {export_format}. Use json, csv, or excel.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 # ============================================================================
