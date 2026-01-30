@@ -1,71 +1,93 @@
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Navigation Header -->
-    <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
-      <div class="container mx-auto px-6 py-4">
+    <nav class="bg-white shadow-sm border-b-2 border-cpsu-green sticky top-0 z-40">
+      <div class="container mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
         <div class="flex justify-between items-center">
-          <router-link to="/dashboard" class="flex items-center space-x-4 text-cpsu-green">
-            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-12 w-12 object-contain">
-            <div>
-              <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
-              <p class="text-sm text-gray-600">Central Philippines State University</p>
+          <router-link to="/dashboard" class="flex items-center space-x-2 sm:space-x-4 text-cpsu-green flex-shrink-0">
+            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-10 w-10 sm:h-12 sm:w-12 object-contain flex-shrink-0">
+            <div class="hidden sm:block">
+              <h1 class="text-lg sm:text-xl lg:text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+              <p class="text-xs sm:text-sm text-gray-600 hidden md:block">Central Philippines State University</p>
             </div>
           </router-link>
-          <div class="flex items-center space-x-4">
-            <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
-            <router-link to="/symptom-checker" class="text-gray-700 hover:text-cpsu-green">Check Symptoms</router-link>
-            <router-link to="/medications" class="text-gray-700 hover:text-cpsu-green">Medications</router-link>
-            <router-link to="/followups" class="text-gray-700 hover:text-cpsu-green">Follow-Ups</router-link>
-            <router-link to="/health-dashboard" class="text-gray-700 hover:text-cpsu-green">Analytics</router-link>
-            <router-link to="/chat" class="text-cpsu-green font-semibold">Chat</router-link>
-            <router-link to="/history" class="text-gray-700 hover:text-cpsu-green">History</router-link>
-            <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green">Profile</router-link>
+
+          <!-- Desktop Navigation -->
+          <div class="hidden xl:flex items-center space-x-1 lg:space-x-2">
+            <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm whitespace-nowrap">Dashboard</router-link>
+            <router-link to="/symptom-checker" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm whitespace-nowrap">Check Symptoms</router-link>
+            <router-link to="/medications" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm whitespace-nowrap">Medications</router-link>
+            <router-link to="/followups" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm whitespace-nowrap">Follow-Ups</router-link>
+            <router-link to="/health-dashboard" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm whitespace-nowrap">Analytics</router-link>
+            <router-link to="/chat" class="text-cpsu-green font-semibold px-2 lg:px-3 py-2 text-sm whitespace-nowrap">Chat</router-link>
+            <router-link to="/history" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm whitespace-nowrap">History</router-link>
+            <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm whitespace-nowrap">Profile</router-link>
           </div>
+
+          <!-- Mobile Menu Button -->
+          <button @click="mobileMenuOpen = !mobileMenuOpen" class="xl:hidden text-cpsu-green p-2 -mr-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Mobile/Tablet Menu -->
+        <div v-if="mobileMenuOpen" class="xl:hidden mt-3 pt-3 pb-2 space-y-2 border-t border-gray-200">
+          <router-link to="/dashboard" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Dashboard</router-link>
+          <router-link to="/symptom-checker" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Check Symptoms</router-link>
+          <router-link to="/medications" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Medications</router-link>
+          <router-link to="/followups" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Follow-Ups</router-link>
+          <router-link to="/health-dashboard" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Analytics</router-link>
+          <router-link to="/chat" class="block px-4 py-2 text-cpsu-green font-semibold hover:bg-gray-100 rounded text-sm">Chat</router-link>
+          <router-link to="/history" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">History</router-link>
+          <router-link to="/profile" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Profile</router-link>
         </div>
       </div>
     </nav>
 
     <!-- Chat Header -->
-    <div class="bg-gradient-to-r from-cpsu-green to-cpsu-green-dark text-white px-6 py-4 shadow-md">
-      <div class="container mx-auto flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-          <div class="w-12 h-12 bg-cpsu-yellow rounded-full flex items-center justify-center text-2xl">
+    <div class="bg-gradient-to-r from-cpsu-green to-cpsu-green-dark text-white px-3 sm:px-4 lg:px-6 py-3 sm:py-4 shadow-md">
+      <div class="container mx-auto flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-cpsu-yellow rounded-full flex items-center justify-center text-xl sm:text-2xl flex-shrink-0">
             🤖
           </div>
-          <div>
-            <h2 class="text-2xl font-heading font-bold">Health Chat Assistant</h2>
-            <p class="text-sm text-cpsu-yellow">AI-powered health support</p>
+          <div class="min-w-0">
+            <h2 class="text-lg sm:text-2xl font-heading font-bold truncate">Health Chat Assistant</h2>
+            <p class="text-xs sm:text-sm text-cpsu-yellow hidden sm:block">AI-powered health support</p>
           </div>
         </div>
         <button
           v-if="chatStore.messages.length > 0"
           @click="clearChat"
-          class="text-white bg-white/20 hover:bg-white hover:text-cpsu-green px-4 py-2 rounded-lg transition-all font-semibold flex items-center space-x-2"
+          class="text-white bg-white/20 hover:bg-white hover:text-cpsu-green px-3 sm:px-4 py-2 rounded-lg transition-all font-semibold text-sm flex items-center space-x-1 sm:space-x-2 justify-center flex-shrink-0"
         >
           <span>🗑️</span>
-          <span>Clear Chat</span>
+          <span class="hidden sm:inline">Clear Chat</span>
         </button>
       </div>
     </div>
 
     <!-- Chat Container - Full Width -->
-    <div class="flex-1 flex flex-col bg-gray-100">
+    <div class="flex-1 flex flex-col bg-gray-100 min-h-0">
       <!-- Messages Area - Full Width -->
-      <div class="flex-1 overflow-y-auto py-6" ref="messagesContainer">
-        <div class="container mx-auto px-6 max-w-7xl">
+      <div class="flex-1 overflow-y-auto py-4 sm:py-6" ref="messagesContainer">
+        <div class="container mx-auto px-3 sm:px-4 lg:px-6 max-w-6xl">
           <!-- Welcome Message -->
-          <div v-if="chatStore.messages.length === 0" class="text-center py-20">
-            <div class="w-24 h-24 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full mx-auto mb-6 flex items-center justify-center text-5xl shadow-lg">
+          <div v-if="chatStore.messages.length === 0" class="text-center py-12 sm:py-20">
+            <div class="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center text-4xl sm:text-5xl shadow-lg">
               🤖
             </div>
-            <h3 class="text-3xl font-bold text-gray-900 mb-3">Welcome to Health Chat!</h3>
-            <p class="text-gray-600 text-lg mb-8">I'm your AI health assistant. How can I help you today?</p>
-            <div class="flex flex-wrap justify-center gap-3">
+            <h3 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Welcome to Health Chat!</h3>
+            <p class="text-gray-600 text-sm sm:text-lg mb-6 sm:mb-8">I'm your AI health assistant. How can I help you today?</p>
+            <div class="flex flex-wrap justify-center gap-2 sm:gap-3">
               <button
                 v-for="action in quickActions"
                 :key="action"
                 @click="sendQuickMessage(action)"
-                class="px-6 py-3 bg-white border-2 border-cpsu-green text-cpsu-green rounded-lg hover:bg-cpsu-green hover:text-white transition-all shadow-sm hover:shadow-md font-semibold"
+                class="px-3 sm:px-6 py-2 sm:py-3 bg-white border-2 border-cpsu-green text-cpsu-green rounded-lg hover:bg-cpsu-green hover:text-white transition-all shadow-sm hover:shadow-md font-semibold text-xs sm:text-sm"
               >
                 {{ action }}
               </button>
@@ -73,50 +95,50 @@
           </div>
 
           <!-- Chat Messages -->
-          <div class="space-y-6">
+          <div class="space-y-4 sm:space-y-6">
             <div
               v-for="message in chatStore.messages"
               :key="message.id"
               :class="['flex', message.sender === 'user' ? 'justify-end' : 'justify-start']"
             >
               <!-- AI Message with Avatar -->
-              <div v-if="message.sender === 'bot'" class="flex items-start space-x-3 max-w-4xl">
+              <div v-if="message.sender === 'bot'" class="flex items-start space-x-2 sm:space-x-3 w-full sm:max-w-4xl">
                 <!-- AI Avatar -->
-                <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full flex items-center justify-center text-white text-xl shadow-md">
+                <div class="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full flex items-center justify-center text-white text-sm sm:text-xl shadow-md">
                   🤖
                 </div>
                 
                 <!-- AI Message Content -->
-                <div class="flex-1">
+                <div class="flex-1 min-w-0">
                   <div class="bg-white rounded-2xl rounded-tl-none shadow-md border border-gray-200 overflow-hidden">
-                    <div class="p-5" v-html="formatBotMessage(message.content)"></div>
+                    <div class="p-3 sm:p-5 text-xs sm:text-sm" v-html="formatBotMessage(message.content)"></div>
                   </div>
-                  <p class="text-xs text-gray-500 mt-2 ml-2">
+                  <p class="text-xs text-gray-500 mt-1 sm:mt-2 ml-1 sm:ml-2">
                     {{ new Date(message.timestamp).toLocaleTimeString() }}
                   </p>
                 </div>
               </div>
 
               <!-- User Message -->
-              <div v-else class="flex items-start space-x-3 max-w-2xl">
-                <div class="flex-1">
+              <div v-else class="flex items-start space-x-2 sm:space-x-3 w-full sm:max-w-2xl justify-end">
+                <div class="flex-1 min-w-0">
                   <div
                     :class="[
-                      'rounded-2xl rounded-tr-none shadow-md px-5 py-3',
+                      'rounded-2xl rounded-tr-none shadow-md px-3 sm:px-5 py-2 sm:py-3 text-xs sm:text-sm',
                       message.isError
                         ? 'bg-red-500 text-white'
                         : 'bg-cpsu-yellow text-cpsu-green'
                     ]"
                   >
-                    <p class="whitespace-pre-wrap font-medium">{{ message.content }}</p>
+                    <p class="whitespace-pre-wrap font-medium break-words">{{ message.content }}</p>
                   </div>
-                  <p class="text-xs text-gray-500 mt-2 mr-2 text-right">
+                  <p class="text-xs text-gray-500 mt-1 sm:mt-2 mr-1 sm:mr-2 text-right">
                     {{ new Date(message.timestamp).toLocaleTimeString() }}
                   </p>
                 </div>
                 
                 <!-- User Avatar -->
-                <div class="flex-shrink-0 w-10 h-10 bg-cpsu-yellow rounded-full flex items-center justify-center text-cpsu-green text-xl font-bold shadow-md">
+                <div class="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-cpsu-yellow rounded-full flex items-center justify-center text-cpsu-green text-sm sm:text-xl font-bold shadow-md">
                   👤
                 </div>
               </div>
@@ -125,16 +147,16 @@
 
           <!-- Loading Indicator -->
           <div v-if="chatStore.loading" class="flex justify-start">
-            <div class="flex items-start space-x-3 max-w-4xl">
-              <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full flex items-center justify-center text-white text-xl shadow-md">
+            <div class="flex items-start space-x-2 sm:space-x-3 w-full sm:max-w-4xl">
+              <div class="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full flex items-center justify-center text-white text-sm sm:text-xl shadow-md">
                 🤖
               </div>
-              <div class="bg-white rounded-2xl rounded-tl-none shadow-md border border-gray-200 px-5 py-4">
+              <div class="bg-white rounded-2xl rounded-tl-none shadow-md border border-gray-200 px-3 sm:px-5 py-3 sm:py-4">
                 <div class="flex items-center space-x-2">
-                  <div class="w-2.5 h-2.5 bg-cpsu-green rounded-full animate-bounce"></div>
-                  <div class="w-2.5 h-2.5 bg-cpsu-green rounded-full animate-bounce" style="animation-delay: 0.15s"></div>
-                  <div class="w-2.5 h-2.5 bg-cpsu-green rounded-full animate-bounce" style="animation-delay: 0.3s"></div>
-                  <span class="text-gray-600 ml-2">Thinking...</span>
+                  <div class="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-cpsu-green rounded-full animate-bounce"></div>
+                  <div class="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-cpsu-green rounded-full animate-bounce" style="animation-delay: 0.15s"></div>
+                  <div class="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-cpsu-green rounded-full animate-bounce" style="animation-delay: 0.3s"></div>
+                  <span class="text-gray-600 ml-1 sm:ml-2 text-xs sm:text-base">Thinking...</span>
                 </div>
               </div>
             </div>
@@ -143,35 +165,35 @@
       </div>
 
       <!-- Input Area - Full Width Bottom -->
-      <div class="bg-white border-t-2 border-gray-200 shadow-lg">
-        <div class="container mx-auto px-6 py-4 max-w-7xl">
-          <form @submit.prevent="sendMessage" class="flex gap-3 items-center">
+      <div class="bg-white border-t-2 border-gray-200 shadow-lg flex-shrink-0">
+        <div class="container mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 max-w-6xl w-full">
+          <form @submit.prevent="sendMessage" class="flex gap-2 sm:gap-3 items-center">
             <input
               v-model="messageInput"
               type="text"
               placeholder="Type your health question here..."
-              class="flex-1 px-5 py-3 border-2 border-gray-300 rounded-full focus:border-cpsu-green focus:ring-2 focus:ring-cpsu-green/20 outline-none transition-all text-gray-900 text-lg"
+              class="flex-1 px-3 sm:px-5 py-2 sm:py-3 border-2 border-gray-300 rounded-full focus:border-cpsu-green focus:ring-2 focus:ring-cpsu-green/20 outline-none transition-all text-gray-900 text-xs sm:text-lg"
               :disabled="chatStore.loading"
             />
             <button
               type="submit"
               :disabled="!messageInput.trim() || chatStore.loading"
-              class="bg-cpsu-green text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-cpsu-green-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center space-x-2"
+              class="bg-cpsu-green text-white px-4 sm:px-8 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-lg hover:bg-cpsu-green-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center space-x-1 sm:space-x-2 flex-shrink-0 whitespace-nowrap"
             >
-              <span>Send</span>
+              <span class="hidden sm:inline">Send</span>
               <span>📤</span>
             </button>
           </form>
           
           <!-- Quick Actions -->
-          <div v-if="chatStore.messages.length > 0" class="mt-4 flex flex-wrap gap-2">
-            <span class="text-sm text-gray-600 font-medium mr-2">Quick questions:</span>
+          <div v-if="chatStore.messages.length > 0" class="mt-3 flex flex-wrap gap-2">
+            <span class="text-xs text-gray-600 font-medium w-full">Quick questions:</span>
             <button
               v-for="action in quickActions"
               :key="action"
               @click="sendQuickMessage(action)"
               :disabled="chatStore.loading"
-              class="text-sm px-4 py-2 border-2 border-cpsu-green/30 text-cpsu-green rounded-full hover:bg-cpsu-green hover:text-white transition-all disabled:opacity-50 font-medium"
+              class="text-xs px-3 py-1 border-2 border-cpsu-green/30 text-cpsu-green rounded-full hover:bg-cpsu-green hover:text-white transition-all disabled:opacity-50 font-medium"
             >
               {{ action }}
             </button>
@@ -189,6 +211,7 @@ import { useChatStore } from '@/stores/chat'
 const chatStore = useChatStore()
 const messageInput = ref('')
 const messagesContainer = ref<HTMLElement | null>(null)
+const mobileMenuOpen = ref(false)
 
 const quickActions = [
   'I have a headache',

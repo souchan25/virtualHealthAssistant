@@ -66,8 +66,12 @@ urlpatterns = [
     path('followups/<uuid:pk>/review/', views.followup_review, name='followup-review'),
     path('followups/needs-review/', views.followup_needs_review, name='followup-needs-review'),
     
-    # Admin custom views
+    # Admin custom views - Dashboard pages
     path('admin/monitoring/', admin_views.backend_monitoring_dashboard, name='admin-monitoring'),
+    path('admin/users/', admin_views.admin_users_page, name='admin-users'),
+    path('admin/health-records/', admin_views.admin_health_records_page, name='admin-health'),
+    path('admin/api-analytics/', admin_views.admin_api_analytics_page, name='admin-analytics'),
+    path('admin/settings/', admin_views.admin_settings_page, name='admin-settings'),
     
     # Router URLs (viewsets)
     path('', include(router.urls)),
