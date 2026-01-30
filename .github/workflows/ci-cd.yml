@@ -1,0 +1,138 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Test Backend
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        cd Django
+        pip install -r requirements.txt
+    
+    - name: Train ML model
+      run: |
+        cd ML/scripts
+        python train_model_realistic.py
+    
+    - name: Run Django tests
+      env:
+        DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: True
+      run: |
+        cd Django
+        python manage.py test
+    
+    - name: Check Django migrations
+      env:
+        DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
+        SECRET_KEY: test-secret-key-for-ci
+      run: |
+        cd Django
+        python manage.py makemigrations --check --dry-run
+  
+  # Test Frontend
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: Vue/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd Vue
+        npm ci
+    
+    - name: Type check
+      run: |
+        cd Vue
+        npm run type-check
+    
+    - name: Build
+      run: |
+        cd Vue
+        npm run build
+      env:
+        VITE_API_BASE_URL: https://api.example.com/api
+        VITE_RASA_URL: https://rasa.example.com
+  
+  # Lint and Code Quality
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install linting tools
+      run: |
+        pip install flake8 black
+    
+    - name: Lint Python code
+      run: |
+        cd Django
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Check formatting (don't fail, just report)
+        black --check . || true
+  
+  # Security Scan
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'

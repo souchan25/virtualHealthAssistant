@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: cpsu_health
+      POSTGRES_USER: cpsu_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cpsu_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-please-change-this}
+      - DEBUG=${DEBUG:-False}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - DATABASE_URL=postgresql://cpsu_user:${DB_PASSWORD:-changeme}@db:5432/cpsu_health
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - COHERE_API_KEY=${COHERE_API_KEY:-}
+      - RASA_ENABLED=${RASA_ENABLED:-False}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - static_volume:/app/Django/staticfiles
+    restart: unless-stopped
+
+  # Optional: Rasa Chatbot
+  # Uncomment to enable Rasa integration
+  # rasa:
+  #   image: rasa/rasa:3.6.0-full
+  #   ports:
+  #     - "5005:5005"
+  #   volumes:
+  #     - ./Rasa:/app
+  #   command: >
+  #     bash -c "rasa train --domain domain.yml --data data/ --out models/
+  #     && rasa run --enable-api --cors '*' --port 5005"
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+  static_volume:

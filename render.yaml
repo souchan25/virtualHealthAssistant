@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: cpsu-health-assistant-backend
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: |
+      cd ML/scripts && python train_model_realistic.py
+      cd ../../Django
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate --noinput
+    startCommand: cd Django && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.7
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: DJANGO_SETTINGS_MODULE
+        value: health_assistant.settings
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cpsu-health-db
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: COHERE_API_KEY
+        sync: false
+
+databases:
+  - name: cpsu-health-db
+    databaseName: cpsu_health_assistant
+    plan: free
+    region: oregon
