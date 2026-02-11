@@ -1289,22 +1289,28 @@ def medication_create(request):
     from datetime import datetime, timedelta
     
     current_date = medication.start_date
+    medication_logs = []
+
     while current_date <= medication.end_date:
         for time_str in medication.schedule_times:
             # Parse time (HH:MM format)
             try:
                 scheduled_time = datetime.strptime(time_str, '%H:%M').time()
-                MedicationLog.objects.create(
+                medication_logs.append(MedicationLog(
                     medication=medication,
                     scheduled_date=current_date,
                     scheduled_time=scheduled_time,
                     status='pending'
-                )
+                ))
             except ValueError:
                 pass  # Skip invalid time formats
         
         current_date += timedelta(days=1)
     
+    # Bulk create all logs at once for performance
+    if medication_logs:
+        MedicationLog.objects.bulk_create(medication_logs)
+
     # Log the prescription
     AuditLog.objects.create(
         user=request.user,
