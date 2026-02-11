@@ -74,12 +74,12 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: Vue/package-lock.json
+        cache-dependency-path: Vue/package.json
     
     - name: Install dependencies
       run: |
         cd Vue
-        npm ci
+        npm install
     
     - name: Type check
       run: |

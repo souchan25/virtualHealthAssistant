@@ -37,8 +37,8 @@ def load_and_prepare_data_with_noise(noise_level=0.05):
     print("Loading datasets...")
     
     # Load main training data
-    train_df = pd.read_csv('Datasets/train.csv')
-    test_df = pd.read_csv('Datasets/test.csv')
+    train_df = pd.read_csv('../Datasets/active/train.csv')
+    test_df = pd.read_csv('../Datasets/active/test.csv')
     
     # Remove any unnamed columns
     train_df = train_df.loc[:, ~train_df.columns.str.contains('^Unnamed')]
@@ -109,7 +109,7 @@ def train_realistic_model(X_train, y_train, X_test, y_test):
     
     return model, test_acc
 
-def save_model(model, feature_names, model_name='disease_predictor_realistic.pkl'):
+def save_model(model, feature_names, model_name='../models/disease_predictor_v2.pkl'):
     """Save the trained model"""
     print(f"\nSaving model to {model_name}...")
     
@@ -201,7 +201,7 @@ def main():
     print("TRAINING COMPLETE!")
     print("="*60)
     print(f"Final Model Accuracy: {best_result['accuracy']*100:.2f}%")
-    print("Model saved as: disease_predictor_realistic.pkl")
+    print("Model saved as: disease_predictor_v2.pkl")
     print("\nThis accuracy range (85-95%) is realistic for medical")
     print("diagnosis systems and not suspiciously perfect!")
     print("\nNote: You can adjust the noise level in the code to fine-tune accuracy.")
