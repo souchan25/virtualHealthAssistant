@@ -162,12 +162,19 @@ class MLPredictor:
     
     def _is_communicable(self, disease: str) -> bool:
         """Determine if disease is communicable"""
+        disease_lower = disease.lower()
+
+        # Explicitly non-communicable variations
+        if 'alcoholic hepatitis' in disease_lower:
+            return False
+
         communicable_diseases = [
             'common cold', 'flu', 'tuberculosis', 'pneumonia', 'covid-19',
             'malaria', 'dengue', 'typhoid', 'hepatitis', 'chickenpox',
-            'measles', 'mumps', 'influenza'
+            'chicken pox', 'measles', 'mumps', 'influenza', 'aids',
+            'hiv', 'impetigo', 'gastroenteritis', 'cholera'
         ]
-        return any(comm in disease.lower() for comm in communicable_diseases)
+        return any(comm in disease_lower for comm in communicable_diseases)
     
     def _is_acute(self, disease: str) -> bool:
         """Determine if disease is acute (vs chronic)"""
