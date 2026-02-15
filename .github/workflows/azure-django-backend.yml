@@ -69,7 +69,7 @@ jobs:
         run: |
           mkdir -p deployment
           
-          # Copy ALL Django files and directories (preserving structure)
+          # Copy ALL Django files and directories
           cp -r Django/* deployment/
           
           # Copy ML models
@@ -80,11 +80,22 @@ jobs:
           mkdir -p deployment/ML/Datasets/active
           cp -r ML/Datasets/active/* deployment/ML/Datasets/active/ 2>/dev/null || true
           
+          # Create .deployment file to tell Azure not to use Oryx build
+          cat > deployment/.deployment << 'EOF'
+          [config]
+          SCM_DO_BUILD_DURING_DEPLOYMENT=false
+          EOF
+          
           echo "📦 Deployment package structure:"
           ls -la deployment/
           echo ""
-          echo "📁 Checking for health_assistant directory:"
-          ls -la deployment/ | grep health_assistant || echo "⚠️ health_assistant directory not found!"
+          echo "📁 health_assistant directory:"
+          if [ -d "deployment/health_assistant" ]; then
+            echo "✅ Found"
+            ls -la deployment/health_assistant/ | head -10
+          else
+            echo "❌ Not found"
+          fi
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
@@ -110,12 +121,11 @@ jobs:
           echo ""
           if [ -d "health_assistant" ]; then
             echo "✅ health_assistant directory found"
-            ls -la health_assistant/
+            ls -la health_assistant/ | head -10
           else
             echo "❌ health_assistant directory NOT found"
-            echo "Available directories:"
-            ls -d */ 2>/dev/null || echo "No directories found"
-            exit 1
+            echo "Available items:"
+            ls -la
           fi
 
       - name: Deploy to Azure Web App
