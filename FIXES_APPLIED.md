@@ -2,6 +2,16 @@
 
 ## 🎯 What Was Fixed
 
+### ✅ Build & Deployment Fixes (NEW)
+
+1. **✅ WhiteNoise CSS Post-Processing Error** - Fixed collectstatic failures
+   - File: `Django/health_assistant/settings.py` (line 281-283)
+   - Changed: `CompressedManifestStaticFilesStorage` → `CompressedStaticFilesStorage`
+   - Issue: Bootswatch CSS files were failing during post-processing on Render
+   - Solution: Using more lenient storage backend that still compresses but doesn't enforce strict manifest
+   - Benefit: Same compression, no build failures with third-party CSS
+   - Documentation: Added troubleshooting section in `DEPLOYMENT.md`
+
 ### ✅ Security Improvements (9/10 fixed)
 
 1. **✅ Django SECRET_KEY** - Moved to environment variable
