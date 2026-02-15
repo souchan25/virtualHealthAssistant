@@ -3,8 +3,29 @@ set -e  # Exit on error
 
 echo "Starting CPSU Health Assistant Backend..."
 
+# Navigate to project root first to ensure correct paths
+cd /home/site/wwwroot 2>/dev/null || cd "$(dirname "$0")"
+
+# Train ML model if it doesn't exist
+echo "Checking ML model..."
+if [ ! -f "ML/models/disease_predictor_v2.pkl" ]; then
+    echo "ML model not found. Training model..."
+    cd ML/scripts
+    python train_model_realistic.py
+    cd ../..
+    
+    # Verify model was created
+    if [ ! -f "ML/models/disease_predictor_v2.pkl" ]; then
+        echo "ERROR: ML model training failed!"
+        exit 1
+    fi
+    echo "✓ ML model trained successfully"
+else
+    echo "✓ ML model found"
+fi
+
 # Navigate to Django directory
-cd /home/site/wwwroot/Django 2>/dev/null || cd Django
+cd Django
 
 echo "Running database migrations..."
 python manage.py migrate --noinput
