@@ -11,6 +11,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 import pickle
 import warnings
+import os
+
 warnings.filterwarnings('ignore')
 
 def add_realistic_noise(X, noise_level=0.05):
@@ -36,9 +38,29 @@ def load_and_prepare_data_with_noise(noise_level=0.05):
     """Load and split dataset with realistic noise"""
     print("Loading datasets...")
     
-    # Load main training data
-    train_df = pd.read_csv('Datasets/train.csv')
-    test_df = pd.read_csv('Datasets/test.csv')
+    # Ensure we use correct paths relative to the script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    train_path = os.path.join(script_dir, '../Datasets/active/train.csv')
+    test_path = os.path.join(script_dir, '../Datasets/active/test.csv')
+
+    if not os.path.exists(train_path):
+        # Fallback for different directory structures or if run from root
+        train_path = 'ML/Datasets/active/train.csv'
+        test_path = 'ML/Datasets/active/test.csv'
+        if not os.path.exists(train_path):
+             print(f"Error: Dataset not found at {train_path} or relative to script.")
+             # Try one more fallback
+             train_path = 'Datasets/train.csv'
+             test_path = 'Datasets/test.csv'
+
+    try:
+        # Load main training data
+        train_df = pd.read_csv(train_path)
+        test_df = pd.read_csv(test_path)
+    except FileNotFoundError as e:
+        print(f"Error loading datasets: {e}")
+        print(f"Current working directory: {os.getcwd()}")
+        raise
     
     # Remove any unnamed columns
     train_df = train_df.loc[:, ~train_df.columns.str.contains('^Unnamed')]
@@ -109,8 +131,13 @@ def train_realistic_model(X_train, y_train, X_test, y_test):
     
     return model, test_acc
 
-def save_model(model, feature_names, model_name='disease_predictor_realistic.pkl'):
+def save_model(model, feature_names, model_name=None):
     """Save the trained model"""
+    if model_name is None:
+        # Default to saving in ../models/disease_predictor_v2.pkl
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        model_name = os.path.join(script_dir, '../models/disease_predictor_v2.pkl')
+
     print(f"\nSaving model to {model_name}...")
     
     model_data = {
@@ -118,6 +145,9 @@ def save_model(model, feature_names, model_name='disease_predictor_realistic.pkl
         'feature_names': feature_names
     }
     
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(model_name), exist_ok=True)
+
     with open(model_name, 'wb') as f:
         pickle.dump(model_data, f)
     
@@ -201,7 +231,7 @@ def main():
     print("TRAINING COMPLETE!")
     print("="*60)
     print(f"Final Model Accuracy: {best_result['accuracy']*100:.2f}%")
-    print("Model saved as: disease_predictor_realistic.pkl")
+    print("Model saved as: disease_predictor_v2.pkl (in ML/models)")
     print("\nThis accuracy range (85-95%) is realistic for medical")
     print("diagnosis systems and not suspiciously perfect!")
     print("\nNote: You can adjust the noise level in the code to fine-tune accuracy.")
