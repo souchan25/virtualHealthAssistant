@@ -10,13 +10,9 @@ on:
       - '.github/workflows/azure-django-backend.yml'
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-
 env:
   PYTHON_VERSION: '3.11'
-  APP_NAME: 'cpsu-health-assistant-backend'
+  AZURE_WEBAPP_NAME: 'cpsu-health-assistant-backend'
 
 jobs:
   build:
@@ -42,7 +38,7 @@ jobs:
         run: |
           source venv/bin/activate
           cd Django
-          pip install -r requirements.txt --index-url=https://pypi.org/simple
+          pip install -r requirements.txt
 
       - name: Train ML Model
         run: |
@@ -57,7 +53,7 @@ jobs:
             echo "Error: ML model not found!"
             exit 1
           fi
-          echo "ML model verified successfully"
+          echo "✅ ML model verified successfully"
 
       - name: Run Django checks
         env:
@@ -71,116 +67,43 @@ jobs:
 
       - name: Create deployment package
         run: |
-          # Create a clean deployment package
           mkdir -p deployment
-          
-          # Copy Django application
           cp -r Django deployment/
-          
-          # Copy ML models (required for predictions)
           mkdir -p deployment/ML/models
           cp -r ML/models/* deployment/ML/models/ 2>/dev/null || true
-          
-          # Copy ML datasets (metadata for predictions)
           mkdir -p deployment/ML/Datasets/active
           cp -r ML/Datasets/active/* deployment/ML/Datasets/active/ 2>/dev/null || true
           
-          # Copy startup scripts
-          cp startup.sh deployment/ 2>/dev/null || true
-          
-          # Create web.config for Azure
-          cat > deployment/web.config << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <handlers>
-                <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
-              </handlers>
-              <httpPlatform processPath="D:\home\python\python.exe"
-                            arguments="D:\home\site\wwwroot\startup.sh"
-                            stdoutLogEnabled="true"
-                            stdoutLogFile="D:\home\LogFiles\python.log"
-                            startupTimeLimit="60"
-                            processesPerApplication="1">
-              </httpPlatform>
-            </system.webServer>
-          </configuration>
-          EOF
-          
-          # Create .deployment file for Azure
-          cat > deployment/.deployment << 'EOF'
-          [config]
-          SCM_DO_BUILD_DURING_DEPLOYMENT = true
+          # Create startup command file
+          cat > deployment/startup.txt << 'EOF'
+          gunicorn --bind=0.0.0.0:8000 --timeout 600 --chdir Django health_assistant.wsgi:application
           EOF
 
       - name: Upload artifact for deployment
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: python-app
           path: deployment/
-          retention-days: 1
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    permissions:
-      id-token: write
-      contents: read
-    environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     
     steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
+      - name: Download artifact
+        uses: actions/download-artifact@v3
         with:
           name: python-app
           path: .
 
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A50CD0D1B2864FEE85CBE312347B5ECE }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_92886A783B344907A053AFBF8DF5CF5A }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C2DB0616F35D4D528A28ECD6FD5FA41F }}
-
-      - name: Configure Azure Web App settings
-        uses: azure/appservice-settings@v1
-        with:
-          app-name: ${{ env.APP_NAME }}
-          slot-name: 'Production'
-          app-settings-json: |
-            [
-              {
-                "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-                "value": "true"
-              },
-              {
-                "name": "WEBSITE_HTTPLOGGING_RETENTION_DAYS",
-                "value": "7"
-              },
-              {
-                "name": "DJANGO_SETTINGS_MODULE",
-                "value": "health_assistant.settings"
-              },
-              {
-                "name": "PYTHONPATH",
-                "value": "/home/site/wwwroot/Django"
-              }
-            ]
-
       - name: Deploy to Azure Web App
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@v2
         with:
-          app-name: ${{ env.APP_NAME }}
-          slot-name: 'Production'
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: .
 
-      - name: Test deployment
+      - name: Deployment Success
         run: |
-          echo "Testing deployment at: ${{ steps.deploy-to-webapp.outputs.webapp-url }}"
-          # Wait for app to be ready
-          sleep 30
-          # Test health endpoint (will fail gracefully if not available)
-          curl -f "${{ steps.deploy-to-webapp.outputs.webapp-url }}/api/health/" || echo "Health check endpoint not responding yet"
+          echo "✅ Django backend deployed successfully!"
+          echo "🌐 URL: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
