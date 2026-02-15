@@ -12,8 +12,10 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import re
 from dotenv import load_dotenv
 import dj_database_url
+from urllib.parse import quote
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,6 +23,77 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables
 load_dotenv()
 load_dotenv(BASE_DIR.parent / '.env')
+
+
+# Helper function to encode DATABASE_URL components
+def encode_database_url(database_url):
+    """
+    Safely encode DATABASE_URL components (especially password) for proper URL parsing.
+    Handles special characters like @, #, $, %, etc. in passwords.
+    
+    Args:
+        database_url: The database URL string (e.g., postgresql://user:pass@host:port/db)
+    
+    Returns:
+        Properly encoded DATABASE_URL string, or None if URL is invalid
+    """
+    if not database_url:
+        return None
+    
+    try:
+        # Check if URL appears to already be encoded (contains % followed by hex digits)
+        # If so, return as-is to avoid double encoding
+        if re.search(r'%[0-9A-Fa-f]{2}', database_url):
+            return database_url
+        
+        # Use a regex to parse the URL manually to handle special characters
+        # We need to be careful with @ symbol as it's used as a delimiter
+        # Strategy: Split on '://' first, then find the last '@' as the user/pass delimiter
+        
+        if '://' not in database_url:
+            return database_url
+        
+        scheme, rest = database_url.split('://', 1)
+        
+        # Find the last @ which separates user:pass from host
+        # This handles passwords that contain @ symbols
+        if '@' in rest:
+            # Split from the right to get user_pass and host_part
+            auth_part, host_part = rest.rsplit('@', 1)
+            
+            # Split auth_part into username and password
+            if ':' in auth_part:
+                username, password = auth_part.split(':', 1)
+            else:
+                username = auth_part
+                password = None
+        else:
+            username = None
+            password = None
+            host_part = rest
+        
+        # Encode username and password if they exist
+        # Use safe='' to encode all special characters including @, :, /, etc.
+        encoded_username = quote(username, safe='') if username else None
+        encoded_password = quote(password, safe='') if password else None
+        
+        # Reconstruct the URL
+        encoded_url = f"{scheme}://"
+        
+        if encoded_username:
+            encoded_url += encoded_username
+            if encoded_password:
+                encoded_url += ':' + encoded_password
+            encoded_url += '@'
+        
+        encoded_url += host_part
+        
+        return encoded_url
+        
+    except Exception as e:
+        # If parsing fails, return original URL and let dj_database_url handle the error
+        print(f"Warning: Could not parse DATABASE_URL for encoding: {e}")
+        return database_url
 
 
 # Quick-start development settings - unsuitable for production
@@ -111,15 +184,19 @@ DATABASES = {
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
     try:
+        # Attempt to encode DATABASE_URL to handle special characters in passwords
+        encoded_url = encode_database_url(DATABASE_URL)
+        
         DATABASES['default'] = dj_database_url.parse(
-            DATABASE_URL,
+            encoded_url,
             conn_max_age=600,
             conn_health_checks=True,
         )
     except Exception as e:
         print(f"Warning: Failed to parse DATABASE_URL: {e}")
+        print(f"Original URL pattern: {DATABASE_URL[:DATABASE_URL.find('://')+3]}***")
         print("Attempting to use individual database environment variables...")
-
+        
         # Fallback to individual variables if DATABASE_URL fails
         if all([os.getenv('DB_NAME'), os.getenv('DB_USER'), os.getenv('DB_PASSWORD'), os.getenv('DB_HOST')]):
             DATABASES['default'] = {
@@ -131,9 +208,23 @@ if DATABASE_URL:
                 'PORT': os.getenv('DB_PORT', '5432'),
                 'CONN_MAX_AGE': 600,
             }
+            print("Successfully configured database using individual environment variables.")
         else:
-            print("Error: DATABASE_URL is invalid and individual DB variables (DB_NAME, DB_USER, DB_PASSWORD, DB_HOST) are not set.")
-            print("Please URL-encode your password in DATABASE_URL or set the individual environment variables.")
+            print("\n" + "="*70)
+            print("ERROR: DATABASE CONFIGURATION FAILED")
+            print("="*70)
+            print("DATABASE_URL parsing failed. This usually happens when:")
+            print("  1. Password contains special characters (@, #, $, %, etc.)")
+            print("  2. URL components are not properly formatted")
+            print("\nSolutions:")
+            print("  1. URL-encode your password manually:")
+            print("     Python: from urllib.parse import quote; print(quote('your-password', safe=''))")
+            print("     Online: https://www.urlencoder.org/")
+            print("  2. Use individual environment variables instead:")
+            print("     DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT")
+            print("\nExample DATABASE_URL with encoded password:")
+            print("  postgresql://user:my%40pass%23word@localhost:5432/dbname")
+            print("="*70 + "\n")
             raise e
 
 # Support individual DB variables if DATABASE_URL is not provided
