@@ -31,6 +31,17 @@ RUN pip install --upgrade pip && \
 COPY Django/ /app/Django/
 COPY ML/ /app/ML/
 
+# Train ML model during build
+WORKDIR /app/ML/scripts
+RUN python train_model_realistic.py
+
+# Verify model was created successfully
+RUN if [ ! -f "/app/ML/models/disease_predictor_v2.pkl" ]; then \
+        echo "ERROR: Model file not found after training!"; \
+        exit 1; \
+    fi && \
+    echo "✓ ML model trained and verified successfully"
+
 # Create necessary directories
 RUN mkdir -p /app/Django/logs /app/Django/staticfiles /app/Django/media
 
