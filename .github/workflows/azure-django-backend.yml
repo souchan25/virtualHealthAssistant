@@ -69,6 +69,8 @@ jobs:
         run: |
           mkdir -p deployment
           cp -r Django/* deployment/
+          # Use production requirements for Azure (lighter, faster install)
+          cp Django/requirements-production.txt deployment/requirements-production.txt
           mkdir -p deployment/ML/models
           cp -r ML/models/* deployment/ML/models/ 2>/dev/null || true
           mkdir -p deployment/ML/Datasets/active

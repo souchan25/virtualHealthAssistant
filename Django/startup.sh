@@ -6,12 +6,9 @@ echo "Starting Django application on Azure..."
 # Print Python version
 python --version
 
-# Upgrade pip
-python -m pip install --upgrade pip
-
-# Install dependencies
-echo "Installing dependencies..."
-pip install -r requirements.txt
+# Install production dependencies (lighter than full requirements.txt)
+echo "Installing production dependencies..."
+pip install --no-cache-dir -r requirements-production.txt
 
 # Collect static files
 echo "Collecting static files..."
