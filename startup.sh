@@ -3,6 +3,10 @@ set -e  # Exit on error
 
 echo "Starting CPSU Health Assistant Backend..."
 
+# Ensure dependencies are installed
+echo "Checking Python dependencies..."
+pip install --no-cache-dir -r /home/site/wwwroot/Django/requirements.txt || pip install --no-cache-dir -r requirements.txt
+
 # Navigate to Django directory
 cd /home/site/wwwroot/Django 2>/dev/null || cd Django
 
