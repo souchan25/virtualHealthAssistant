@@ -113,7 +113,7 @@ def _get_env_list(name, default):
         return [item.strip() for item in value.split(',') if item.strip()]
     return default
 
-ALLOWED_HOSTS = _get_env_list('DJANGO_ALLOWED_HOSTS', None) or _get_env_list('ALLOWED_HOSTS', ['testserver', '.localhost', '127.0.0.1', '[::1]'])
+ALLOWED_HOSTS = _get_env_list('DJANGO_ALLOWED_HOSTS', None) or _get_env_list('ALLOWED_HOSTS', ['testserver', '.localhost', '127.0.0.1', '[::1]', '.azurewebsites.net'])
 
 
 # Application definition
