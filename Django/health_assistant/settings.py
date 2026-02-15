@@ -185,12 +185,22 @@ WSGI_APPLICATION = 'health_assistant.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 # Default to SQLite for development
-DATABASES = {
-    'default': dj_database_url.config(
-        default='sqlite:///db.sqlite3',
-        conn_max_age=600
-    )
-}
+try:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default='sqlite:///db.sqlite3',
+            conn_max_age=600
+        )
+    }
+except (ValueError, KeyError) as e:
+    # Fallback to SQLite if DATABASE_URL is malformed
+    print(f"Warning: Invalid DATABASE_URL ({e}), falling back to SQLite")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Override with DATABASE_URL if provided (for production)
 # Supports: PostgreSQL, MySQL, SQLite
