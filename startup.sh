@@ -10,13 +10,15 @@ cd /home/site/wwwroot 2>/dev/null || cd "$(dirname "$0")"
 echo "Checking ML model..."
 if [ ! -f "ML/models/disease_predictor_v2.pkl" ]; then
     echo "ML model not found. Training model..."
-    cd ML/scripts
-    python train_model_realistic.py
-    cd ../..
+    # Use subshell to isolate directory change
+    (cd ML/scripts && python train_model_realistic.py) || {
+        echo "ERROR: ML model training failed!"
+        exit 1
+    }
     
     # Verify model was created
     if [ ! -f "ML/models/disease_predictor_v2.pkl" ]; then
-        echo "ERROR: ML model training failed!"
+        echo "ERROR: ML model file not found after training!"
         exit 1
     fi
     echo "✓ ML model trained successfully"

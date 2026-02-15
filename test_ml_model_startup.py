@@ -3,7 +3,15 @@
 Test script to verify ML model loading and Gunicorn startup.
 This test ensures the fix for the Gunicorn WSGI import error is working.
 
+Important: This test must be run from the repository root directory.
+The script expects the following structure:
+  - Repository root/
+    ├── test_ml_model_startup.py (this file)
+    ├── ML/models/disease_predictor_v2.pkl
+    └── Django/health_assistant/
+
 Usage:
+    cd /path/to/virtualHealthAssistant
     python test_ml_model_startup.py
 """
 
@@ -11,13 +19,17 @@ import os
 import sys
 from pathlib import Path
 
+# Ensure we're running from the repository root
+REPO_ROOT = Path(__file__).parent.resolve()
+os.chdir(REPO_ROOT)
+
 def test_ml_model_exists():
     """Test that the ML model file exists"""
     print("=" * 60)
     print("TEST 1: Checking ML Model File")
     print("=" * 60)
     
-    model_path = Path(__file__).parent / 'ML' / 'models' / 'disease_predictor_v2.pkl'
+    model_path = REPO_ROOT / 'ML' / 'models' / 'disease_predictor_v2.pkl'
     
     if model_path.exists():
         size_mb = model_path.stat().st_size / (1024 * 1024)
@@ -45,7 +57,7 @@ def test_django_import():
     os.environ.setdefault('ALLOWED_HOSTS', '*')
     
     # Add Django to path
-    django_path = Path(__file__).parent / 'Django'
+    django_path = REPO_ROOT / 'Django'
     sys.path.insert(0, str(django_path))
     
     try:
