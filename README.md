@@ -1,12 +1,6 @@
 # 🏥 CPSU Virtual Health Assistant
 
 **AI-powered health assistant for Central Philippine State University**  
-Hybrid ML + LLM system | 90-98% accuracy | 100% FREE tier
-
-[![Deploy to Railway](https://railway.app/button.svg)](https://railway.app/new)
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new)
-
----
 
 ## 🚀 Quick Start
 
