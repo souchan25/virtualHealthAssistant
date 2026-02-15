@@ -9,6 +9,8 @@
 venv/
 env/
 ENV/
+infra
+azure.yaml
 .venv/
 *.pyc
 __pycache__/

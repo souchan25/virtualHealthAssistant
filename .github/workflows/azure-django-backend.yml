@@ -38,7 +38,7 @@ jobs:
         run: |
           source venv/bin/activate
           cd Django
-          pip install -r requirements.txt
+          pip install -r requirements.txt --index-url=https://pypi.org/simple
 
       - name: Train ML Model
         run: |
