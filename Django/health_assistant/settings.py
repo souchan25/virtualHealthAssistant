@@ -117,22 +117,35 @@ ALLOWED_HOSTS = _get_env_list('DJANGO_ALLOWED_HOSTS', None) or _get_env_list('AL
 
 
 # Application definition
-
-INSTALLED_APPS = [
-    'jazzmin',  # Must be before django.contrib.admin
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    # Third-party apps
-    'rest_framework',
-    'rest_framework.authtoken',
-    'corsheaders',
-    # Local apps
-    'clinic.apps.ClinicConfig',
-]
+# Admin interface (only enable Jazzmin in DEBUG mode to avoid startup delays)
+if DEBUG:
+    INSTALLED_APPS = [
+        'jazzmin',  # Fancy admin UI (before django.contrib.admin)
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'rest_framework',
+        'rest_framework.authtoken',
+        'corsheaders',
+        'clinic',
+    ]
+else:
+    # Production: Skip Jazzmin to avoid startup delays
+    INSTALLED_APPS = [
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'rest_framework',
+        'rest_framework.authtoken',
+        'corsheaders',
+        'clinic',
+    ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
