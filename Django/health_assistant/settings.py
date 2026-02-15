@@ -193,7 +193,14 @@ DATABASES = {
 }
 
 # Override with DATABASE_URL if provided (for production)
-# Use dj-database-url for automatic parsing (Railway, Render, Heroku compatible)
+# Supports: PostgreSQL, MySQL, SQLite
+# Compatible with: Supabase, Railway, Render, Heroku, Azure
+#
+# Supabase connection string format:
+# postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+#
+# For direct connection (migrations): use port 5432 instead of 6543
+# postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
     try:
@@ -237,6 +244,9 @@ if DATABASE_URL:
             print("     DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT")
             print("\nExample DATABASE_URL with encoded password:")
             print("  postgresql://user:my%40pass%23word@localhost:5432/dbname")
+            print("\nFor Supabase:")
+            print("  Connection pooler (port 6543): Best for web apps")
+            print("  Direct connection (port 5432): Use for migrations")
             print("="*70 + "\n")
             raise e
 
