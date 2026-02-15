@@ -68,40 +68,24 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir -p deployment
-          
-          # Copy ALL Django files and directories
           cp -r Django/* deployment/
-          
-          # Copy ML models
           mkdir -p deployment/ML/models
           cp -r ML/models/* deployment/ML/models/ 2>/dev/null || true
-          
-          # Copy ML datasets
           mkdir -p deployment/ML/Datasets/active
           cp -r ML/Datasets/active/* deployment/ML/Datasets/active/ 2>/dev/null || true
-          
-          # Create .deployment file to tell Azure not to use Oryx build
-          cat > deployment/.deployment << 'EOF'
-          [config]
-          SCM_DO_BUILD_DURING_DEPLOYMENT=false
-          EOF
-          
-          echo "📦 Deployment package structure:"
-          ls -la deployment/
-          echo ""
-          echo "📁 health_assistant directory:"
-          if [ -d "deployment/health_assistant" ]; then
-            echo "✅ Found"
-            ls -la deployment/health_assistant/ | head -10
-          else
-            echo "❌ Not found"
-          fi
+
+      - name: Create ZIP for deployment
+        run: |
+          cd deployment
+          zip -r ../app.zip .
+          cd ..
+          ls -lh app.zip
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: deployment/
+          path: app.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -112,30 +96,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: python-app
-          path: .
-
-      - name: Verify deployment structure
-        run: |
-          echo "📦 Verifying deployment package:"
-          ls -la
-          echo ""
-          if [ -d "health_assistant" ]; then
-            echo "✅ health_assistant directory found"
-            ls -la health_assistant/ | head -10
-          else
-            echo "❌ health_assistant directory NOT found"
-            echo "Available items:"
-            ls -la
-          fi
 
       - name: Deploy to Azure Web App
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v2
+        uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
-          clean: true
+          package: app.zip
 
       - name: Deployment Success
         run: |
