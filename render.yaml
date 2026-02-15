@@ -22,20 +22,14 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: health_assistant.settings
       - key: DATABASE_URL
-        fromDatabase:
-          name: cpsu-health-db
-          property: connectionString
+        sync: false
       - key: ALLOWED_HOSTS
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: COHERE_API_KEY
         sync: false
-
-databases:
-  - name: cpsu-health-db
-    databaseName: cpsu_health_assistant
-    plan: free
-    region: oregon
