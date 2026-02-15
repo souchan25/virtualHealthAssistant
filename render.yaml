@@ -6,9 +6,11 @@ services:
     plan: free
     branch: main
     buildCommand: |
-      cd ML/scripts && python train_model_realistic.py
-      cd ../../Django
+      cd Django
       pip install -r requirements.txt
+      cd ../ML/scripts
+      python train_model_realistic.py
+      cd ../../Django
       python manage.py collectstatic --noinput
       python manage.py migrate --noinput
     startCommand: cd Django && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2
