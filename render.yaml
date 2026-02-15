@@ -6,7 +6,7 @@ services:
     plan: free
     branch: main
     buildCommand: ./render_build.sh
-    startCommand: cd Django && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --graceful-timeout 30
+    startCommand: cd Django && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --graceful-timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 50 --log-level info
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7
@@ -16,6 +16,8 @@ services:
         value: False
       - key: DJANGO_SETTINGS_MODULE
         value: health_assistant.settings
+      - key: WEB_CONCURRENCY
+        value: 2
       - key: DATABASE_URL
         sync: false
       - key: ALLOWED_HOSTS
