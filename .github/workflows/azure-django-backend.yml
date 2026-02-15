@@ -86,28 +86,28 @@ jobs:
           
           # Create web.config for Azure
           cat > deployment/web.config << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <system.webServer>
-    <handlers>
-      <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
-    </handlers>
-    <httpPlatform processPath="D:\home\python\python.exe"
-                  arguments="D:\home\site\wwwroot\startup.sh"
-                  stdoutLogEnabled="true"
-                  stdoutLogFile="D:\home\LogFiles\python.log"
-                  startupTimeLimit="60"
-                  processesPerApplication="1">
-    </httpPlatform>
-  </system.webServer>
-</configuration>
-EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <handlers>
+                <add name="PythonHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified"/>
+              </handlers>
+              <httpPlatform processPath="D:\home\python\python.exe"
+                            arguments="D:\home\site\wwwroot\startup.sh"
+                            stdoutLogEnabled="true"
+                            stdoutLogFile="D:\home\LogFiles\python.log"
+                            startupTimeLimit="60"
+                            processesPerApplication="1">
+              </httpPlatform>
+            </system.webServer>
+          </configuration>
+          EOF
           
           # Create .deployment file for Azure
           cat > deployment/.deployment << 'EOF'
-[config]
-SCM_DO_BUILD_DURING_DEPLOYMENT = true
-EOF
+          [config]
+          SCM_DO_BUILD_DURING_DEPLOYMENT = true
+          EOF
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
@@ -168,6 +168,7 @@ EOF
         with:
           app-name: ${{ env.APP_NAME }}
           slot-name: 'Production'
+          package: .
 
       - name: Test deployment
         run: |
