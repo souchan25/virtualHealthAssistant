@@ -312,19 +312,23 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings (for frontend development)
-# Allow all origins in development (for testing), but use whitelist in production
 CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
 
 # Parse CORS_ALLOWED_ORIGINS from environment
 CORS_ALLOWED_ORIGINS = _get_env_list(
     'CORS_ALLOWED_ORIGINS',
     [
-        'http://localhost:3000',      # React default
+        'http://localhost:3000',
         'http://127.0.0.1:3000',
-        'http://localhost:5173',      # Vite/Vue default
+        'http://localhost:5173',
         'http://127.0.0.1:5173',
     ],
 )
+
+import re
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://virtual-health-assistant.*\.vercel\.app$",  # Match all Vercel deployments
+]
 
 # Allow credentials (for cookies/auth tokens)
 CORS_ALLOW_CREDENTIALS = True
