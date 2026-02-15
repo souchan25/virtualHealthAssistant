@@ -110,11 +110,43 @@ DATABASES = {
 # Use dj-database-url for automatic parsing (Railway, Render, Heroku compatible)
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
-    DATABASES['default'] = dj_database_url.parse(
-        DATABASE_URL,
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    try:
+        DATABASES['default'] = dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    except Exception as e:
+        print(f"Warning: Failed to parse DATABASE_URL: {e}")
+        print("Attempting to use individual database environment variables...")
+
+        # Fallback to individual variables if DATABASE_URL fails
+        if all([os.getenv('DB_NAME'), os.getenv('DB_USER'), os.getenv('DB_PASSWORD'), os.getenv('DB_HOST')]):
+            DATABASES['default'] = {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.getenv('DB_NAME'),
+                'USER': os.getenv('DB_USER'),
+                'PASSWORD': os.getenv('DB_PASSWORD'),
+                'HOST': os.getenv('DB_HOST'),
+                'PORT': os.getenv('DB_PORT', '5432'),
+                'CONN_MAX_AGE': 600,
+            }
+        else:
+            print("Error: DATABASE_URL is invalid and individual DB variables (DB_NAME, DB_USER, DB_PASSWORD, DB_HOST) are not set.")
+            print("Please URL-encode your password in DATABASE_URL or set the individual environment variables.")
+            raise e
+
+# Support individual DB variables if DATABASE_URL is not provided
+elif all([os.getenv('DB_NAME'), os.getenv('DB_USER'), os.getenv('DB_PASSWORD'), os.getenv('DB_HOST')]):
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+        'CONN_MAX_AGE': 600,
+    }
 
 
 # Password validation
