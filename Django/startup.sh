@@ -10,13 +10,15 @@ python --version
 echo "Installing production dependencies..."
 pip install --no-cache-dir -r requirements-production.txt
 
-# Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
-
-# Run database migrations
+# Run database migrations first
 echo "Running database migrations..."
 python manage.py migrate --noinput
+
+# Skip collectstatic in production - Azure can serve static files directly
+# Or run it in background to not block startup
+echo "Skipping static files collection (handled by Azure or run in background)..."
+# Uncomment below to collect static files (may take 2-5 minutes):
+# python manage.py collectstatic --noinput --clear &
 
 # Create default superuser if needed (optional)
 # python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', 'admin@example.com', 'changeme')"

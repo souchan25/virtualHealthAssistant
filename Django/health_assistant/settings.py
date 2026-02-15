@@ -311,9 +311,13 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # WhiteNoise configuration for static files
-# Use CompressedStaticFilesStorage instead of CompressedManifestStaticFilesStorage
-# to avoid post-processing errors with third-party CSS files (e.g., bootswatch)
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# Use StaticFilesStorage for faster collection (no compression)
+# For production with compression, use: 'whitenoise.storage.CompressedStaticFilesStorage'
+if DEBUG:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+else:
+    # Use simpler storage for faster Azure deployments
+    STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
 
 # Media files (user uploads)
 MEDIA_URL = 'media/'
