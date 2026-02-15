@@ -67,12 +67,20 @@ jobs:
 
       - name: Create deployment package
         run: |
+          # Copy Django files to root of deployment
           mkdir -p deployment
-          cp -r Django deployment/
+          cp -r Django/* deployment/
+          
+          # Copy ML models to deployment root
           mkdir -p deployment/ML/models
           cp -r ML/models/* deployment/ML/models/ 2>/dev/null || true
+          
+          # Copy ML datasets
           mkdir -p deployment/ML/Datasets/active
           cp -r ML/Datasets/active/* deployment/ML/Datasets/active/ 2>/dev/null || true
+          
+          echo "📦 Deployment package contents:"
+          ls -la deployment/
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
