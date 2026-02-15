@@ -67,9 +67,11 @@ jobs:
 
       - name: Create deployment package
         run: |
-          # Copy Django files to root of deployment
           mkdir -p deployment
+          
+          # Copy ALL Django files and directories
           cp -r Django/* deployment/
+          cp -r Django/.* deployment/ 2>/dev/null || true
           
           # Copy ML models to deployment root
           mkdir -p deployment/ML/models
@@ -79,8 +81,11 @@ jobs:
           mkdir -p deployment/ML/Datasets/active
           cp -r ML/Datasets/active/* deployment/ML/Datasets/active/ 2>/dev/null || true
           
-          echo "📦 Deployment package contents:"
+          echo "📦 Deployment package structure:"
           ls -la deployment/
+          echo ""
+          echo "📁 Checking for health_assistant directory:"
+          ls -la deployment/ | grep health_assistant || echo "⚠️ health_assistant directory not found!"
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
@@ -98,6 +103,19 @@ jobs:
         with:
           name: python-app
           path: .
+
+      - name: Verify deployment structure
+        run: |
+          echo "📦 Verifying deployment package:"
+          ls -la
+          echo ""
+          if [ -d "health_assistant" ]; then
+            echo "✅ health_assistant directory found"
+            ls -la health_assistant/
+          else
+            echo "❌ health_assistant directory NOT found"
+            exit 1
+          fi
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
