@@ -1,0 +1,44 @@
+# Ignore all files by default, then allow specific ones
+# This prevents accidentally including huge folders like Vue/node_modules or Rasa models
+*
+
+# Allow Django application
+!Django/
+!Django_requirements.txt
+
+# Allow ML models (required for prediction)
+!ML/models/
+
+# Exclude unnecessary Django files
+Django/__pycache__/
+Django/*.log
+Django/db.sqlite3
+Django/media/
+Django/staticfiles/
+Django/tests/
+
+# Exclude ML training data and scripts (only need trained models)
+ML/Datasets/
+ML/scripts/
+ML/docs/
+ML/notebooks/
+ML/__pycache__/
+
+# Allow root configuration files if needed
+!Dockerfile
+!docker-compose.yml
+!README.md
+!runtime.txt
+!Procfile
+
+# Exclude version control and IDE files
+.git/
+.gitignore
+.vscode/
+.idea/
+.env
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+.DS_Store

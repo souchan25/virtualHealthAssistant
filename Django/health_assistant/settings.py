@@ -186,10 +186,10 @@ WSGI_APPLICATION = 'health_assistant.wsgi.application'
 
 # Default to SQLite for development
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default='sqlite:///db.sqlite3',
+        conn_max_age=600
+    )
 }
 
 # Override with DATABASE_URL if provided (for production)
@@ -341,6 +341,7 @@ CORS_ALLOWED_ORIGINS = _get_env_list(
 import re
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://virtual-health-assistant.*\.vercel\.app$",  # Match all Vercel deployments
+    r"^https://.*\.azurewebsites\.net$",  # Match all Azure App Service deployments
 ]
 
 # Allow credentials (for cookies/auth tokens)
