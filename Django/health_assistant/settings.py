@@ -195,50 +195,38 @@ if DATABASE_URL:
         )
     except Exception as e:
         print(f"Warning: Failed to parse DATABASE_URL: {e}")
-        print("Attempting to encode special characters and retry...")
+        print(f"Original URL pattern: {DATABASE_URL[:DATABASE_URL.find('://')+3]}***")
+        print("Attempting to use individual database environment variables...")
         
-        # Try one more time with explicit encoding if first attempt failed
-        try:
-            encoded_url = encode_database_url(DATABASE_URL)
-            DATABASES['default'] = dj_database_url.parse(
-                encoded_url,
-                conn_max_age=600,
-                conn_health_checks=True,
-            )
-            print("Successfully parsed DATABASE_URL after encoding.")
-        except Exception as e2:
-            print(f"Still failed after encoding: {e2}")
-            print("Attempting to use individual database environment variables...")
-            
-            # Fallback to individual variables if DATABASE_URL fails
-            if all([os.getenv('DB_NAME'), os.getenv('DB_USER'), os.getenv('DB_PASSWORD'), os.getenv('DB_HOST')]):
-                DATABASES['default'] = {
-                    'ENGINE': 'django.db.backends.postgresql',
-                    'NAME': os.getenv('DB_NAME'),
-                    'USER': os.getenv('DB_USER'),
-                    'PASSWORD': os.getenv('DB_PASSWORD'),
-                    'HOST': os.getenv('DB_HOST'),
-                    'PORT': os.getenv('DB_PORT', '5432'),
-                    'CONN_MAX_AGE': 600,
-                }
-                print("Successfully configured database using individual environment variables.")
-            else:
-                print("\n" + "="*70)
-                print("ERROR: DATABASE CONFIGURATION FAILED")
-                print("="*70)
-                print("DATABASE_URL parsing failed. This usually happens when:")
-                print("  1. Password contains special characters (@, #, $, %, etc.)")
-                print("  2. URL components are not properly formatted")
-                print("\nSolutions:")
-                print("  1. URL-encode your password manually:")
-                print("     Python: from urllib.parse import quote; print(quote('your-password', safe=''))")
-                print("     Online: https://www.urlencoder.org/")
-                print("  2. Use individual environment variables instead:")
-                print("     DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT")
-                print("\nExample DATABASE_URL with encoded password:")
-                print("  postgresql://user:my%40pass%23word@localhost:5432/dbname")
-                print("="*70 + "\n")
-                raise e2
+        # Fallback to individual variables if DATABASE_URL fails
+        if all([os.getenv('DB_NAME'), os.getenv('DB_USER'), os.getenv('DB_PASSWORD'), os.getenv('DB_HOST')]):
+            DATABASES['default'] = {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.getenv('DB_NAME'),
+                'USER': os.getenv('DB_USER'),
+                'PASSWORD': os.getenv('DB_PASSWORD'),
+                'HOST': os.getenv('DB_HOST'),
+                'PORT': os.getenv('DB_PORT', '5432'),
+                'CONN_MAX_AGE': 600,
+            }
+            print("Successfully configured database using individual environment variables.")
+        else:
+            print("\n" + "="*70)
+            print("ERROR: DATABASE CONFIGURATION FAILED")
+            print("="*70)
+            print("DATABASE_URL parsing failed. This usually happens when:")
+            print("  1. Password contains special characters (@, #, $, %, etc.)")
+            print("  2. URL components are not properly formatted")
+            print("\nSolutions:")
+            print("  1. URL-encode your password manually:")
+            print("     Python: from urllib.parse import quote; print(quote('your-password', safe=''))")
+            print("     Online: https://www.urlencoder.org/")
+            print("  2. Use individual environment variables instead:")
+            print("     DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT")
+            print("\nExample DATABASE_URL with encoded password:")
+            print("  postgresql://user:my%40pass%23word@localhost:5432/dbname")
+            print("="*70 + "\n")
+            raise e
 
 # Support individual DB variables if DATABASE_URL is not provided
 elif all([os.getenv('DB_NAME'), os.getenv('DB_USER'), os.getenv('DB_PASSWORD'), os.getenv('DB_HOST')]):

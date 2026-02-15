@@ -195,7 +195,7 @@ The function automatically detects encoded URLs by looking for `%XX` patterns. I
 
 ## References
 
-- [RFC 3986 - URL Encoding](https://datatracker.ietf.org/doc/html/rfc3986)
+- [RFC 3986 - URI Generic Syntax (Percent-Encoding)](https://datatracker.ietf.org/doc/html/rfc3986)
 - [dj-database-url Documentation](https://github.com/jazzband/dj-database-url)
 - [Django Database Configuration](https://docs.djangoproject.com/en/stable/ref/databases/)
 - [Python urllib.parse.quote](https://docs.python.org/3/library/urllib.parse.html#urllib.parse.quote)

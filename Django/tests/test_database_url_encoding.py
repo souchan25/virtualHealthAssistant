@@ -3,8 +3,8 @@ Unit tests for DATABASE_URL encoding functionality.
 Tests the encode_database_url function added to settings.py
 """
 import unittest
-from urllib.parse import quote
 import re
+from urllib.parse import quote
 
 
 def encode_database_url(database_url):
