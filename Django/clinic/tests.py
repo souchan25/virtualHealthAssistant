@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from datetime import timedelta
+from unittest.mock import patch
 import uuid
 
 from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog
@@ -406,3 +407,58 @@ class MLPredictorTests(TestCase):
         
         self.assertIsInstance(symptoms, list)
         self.assertGreater(len(symptoms), 0)
+
+
+class MLServiceLogicTests(TestCase):
+    """Test ML predictor categorization logic without loading models"""
+
+    @patch('clinic.ml_service.MLPredictor._load_model')
+    @patch('clinic.ml_service.MLPredictor._load_metadata')
+    def setUp(self, mock_load_metadata, mock_load_model):
+        from .ml_service import MLPredictor
+        self.predictor = MLPredictor()
+
+    def test_is_communicable(self):
+        """Test communicable disease classification"""
+        # Standard cases
+        self.assertTrue(self.predictor._is_communicable('common cold'))
+        self.assertTrue(self.predictor._is_communicable('Malaria'))
+        self.assertTrue(self.predictor._is_communicable('Pneumonia'))
+        self.assertTrue(self.predictor._is_communicable('COVID-19'))
+        self.assertTrue(self.predictor._is_communicable('Hepatitis A'))
+
+        # New cases and variations
+        self.assertTrue(self.predictor._is_communicable('Chicken pox'))
+        self.assertTrue(self.predictor._is_communicable('AIDS'))
+        self.assertTrue(self.predictor._is_communicable('Impetigo'))
+
+        # Negative cases
+        self.assertFalse(self.predictor._is_communicable('diabetes'))
+        self.assertFalse(self.predictor._is_communicable('Hypertension'))
+        self.assertFalse(self.predictor._is_communicable('Migraine'))
+        self.assertFalse(self.predictor._is_communicable('Alcoholic hepatitis'))
+
+        # Variations and substrings
+        self.assertTrue(self.predictor._is_communicable('seasonal flu'))
+        self.assertTrue(self.predictor._is_communicable('tuberculosis'))
+
+    def test_is_acute(self):
+        """Test acute vs chronic classification"""
+        # Acute cases
+        self.assertTrue(self.predictor._is_acute('common cold'))
+        self.assertTrue(self.predictor._is_acute('Dengue'))
+        self.assertTrue(self.predictor._is_acute('Malaria'))
+
+        # Chronic cases
+        self.assertFalse(self.predictor._is_acute('Diabetes'))
+        self.assertFalse(self.predictor._is_acute('Hypertension'))
+        self.assertFalse(self.predictor._is_acute('Bronchial Asthma'))
+        self.assertFalse(self.predictor._is_acute('Osteoarthristis'))
+
+    def test_get_icd10_code(self):
+        """Test ICD-10 code mapping"""
+        self.assertEqual(self.predictor._get_icd10_code('Common Cold'), 'J00')
+        self.assertEqual(self.predictor._get_icd10_code('Influenza'), 'J11')
+        self.assertEqual(self.predictor._get_icd10_code('Malaria'), 'B54')
+        self.assertEqual(self.predictor._get_icd10_code('Diabetes'), 'E11')
+        self.assertEqual(self.predictor._get_icd10_code('Unknown'), '')

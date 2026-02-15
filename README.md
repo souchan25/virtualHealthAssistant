@@ -3,9 +3,14 @@
 **AI-powered health assistant for Central Philippine State University**  
 Hybrid ML + LLM system | 90-98% accuracy | 100% FREE tier
 
+[![Deploy to Railway](https://railway.app/button.svg)](https://railway.app/new)
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new)
+
 ---
 
 ## 🚀 Quick Start
+
+### Local Development
 
 ```bash
 # 1. Clone and setup
@@ -28,6 +33,33 @@ python manage.py runserver
 
 **Server running at**: http://localhost:8000  
 **API Documentation**: http://localhost:8000/api/
+
+### Production Deployment (FREE)
+
+**Using GitHub Student Developer Pack:**
+
+```bash
+# 1. Get Student Pack benefits
+Visit: https://education.github.com/pack
+
+# 2. Deploy Backend to Railway (FREE $5/month credit)
+Visit: https://railway.app/
+- Connect GitHub repo
+- Add PostgreSQL database
+- Deploy automatically
+
+# 3. Deploy Frontend to Vercel (FREE unlimited)
+Visit: https://vercel.com/
+- Import GitHub repo
+- Deploy with one click
+
+# Complete guide: See DEPLOYMENT.md
+```
+
+**📖 Deployment Guides:**
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide
+- **[STUDENT_PACK_GUIDE.md](STUDENT_PACK_GUIDE.md)** - How to use student benefits
+- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Pre-flight checklist
 
 ---
 
