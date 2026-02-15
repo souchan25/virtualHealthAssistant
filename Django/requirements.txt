@@ -170,9 +170,9 @@ jupyterlab_server
 jupyterlab_widgets
 Kivy
 Kivy-Garden
-kivy_deps.angle
-kivy_deps.glew
-kivy_deps.sdl2
+kivy_deps.angle; sys_platform == 'win32'
+kivy_deps.glew; sys_platform == 'win32'
+kivy_deps.sdl2; sys_platform == 'win32'
 kiwisolver
 kombu
 lazy_loader
@@ -242,7 +242,7 @@ Pygments
 PyJWT
 pyOpenSSL
 pyparsing
-pypiwin32
+pypiwin32; sys_platform == 'win32'
 PyQt5
 PyQt5-Qt5
 PyQt5_sip
@@ -264,7 +264,7 @@ python-magic
 python-multipart
 pythonnet
 pytz
-pywin32
+pywin32; sys_platform == 'win32'
 pywinpty
 PyYAML
 pyzmq
