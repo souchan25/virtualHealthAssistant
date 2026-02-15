@@ -1,0 +1,83 @@
+# ===================================
+# CPSU Virtual Health Assistant
+# Docker Compose Configuration
+# ===================================
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: cpsu_health_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: cpsu_health
+      POSTGRES_USER: cpsu_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cpsu_admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cpsu_health_backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 60 health_assistant.wsgi:application"
+    volumes:
+      - ./Django:/app/Django
+      - ./ML:/app/ML
+      - static_volume:/app/Django/staticfiles
+      - media_volume:/app/Django/media
+      - logs_volume:/app/Django/logs
+    ports:
+      - "8000:8000"
+    env_file:
+      - Django/.env
+    environment:
+      - DATABASE_URL=postgresql://cpsu_admin:${DB_PASSWORD:-changeme}@db:5432/cpsu_health
+      - DEBUG=False
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy (Optional - for production)
+  nginx:
+    image: nginx:alpine
+    container_name: cpsu_health_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+  logs_volume:
+
+networks:
+  default:
+    name: cpsu_health_network

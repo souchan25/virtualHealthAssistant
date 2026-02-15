@@ -1066,9 +1066,10 @@ def trigger_emergency(request):
     # Log the emergency
     AuditLog.objects.create(
         user=request.user,
-        action='emergency_triggered',
-        details={
-            'emergency_id': str(emergency.id),
+        action='create',
+        model_name='EmergencyAlert',
+        object_id=str(emergency.id),
+        changes={
             'location': emergency.location,
             'symptoms_count': len(emergency.symptoms)
         }
@@ -1163,10 +1164,12 @@ def emergency_respond(request, emergency_id):
         # Log response
         AuditLog.objects.create(
             user=request.user,
-            action='emergency_responded',
-            details={
-                'emergency_id': str(emergency.id),
-                'student': emergency.student.school_id,
+            action='update',
+            model_name='EmergencyAlert',
+            object_id=str(emergency.id),
+            changes={
+                'status': emergency.status,
+                'responded_by': request.user.school_id,
                 'response_time_minutes': emergency.response_time_minutes
             }
         )
@@ -1210,11 +1213,12 @@ def emergency_resolve(request, emergency_id):
     # Log resolution
     AuditLog.objects.create(
         user=request.user,
-        action='emergency_resolved',
-        details={
-            'emergency_id': str(emergency.id),
-            'student': emergency.student.school_id,
-            'resolution': emergency.status,
+        action='update',
+        model_name='EmergencyAlert',
+        object_id=str(emergency.id),
+        changes={
+            'status': emergency.status,
+            'resolved_at': emergency.resolved_at.isoformat() if emergency.resolved_at else None,
             'response_time_minutes': emergency.response_time_minutes
         }
     )
@@ -1734,3 +1738,90 @@ def staff_analytics(request):
     }
     
     return Response(data)
+
+
+# ============================================================================
+# Health Check & System Status
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """
+    Health check endpoint for monitoring and load balancers.
+    Returns system status and component availability.
+    
+    GET /api/health/
+    """
+    import sys
+    from django.db import connection
+    from django.conf import settings
+    
+    status_data = {
+        'status': 'healthy',
+        'timestamp': timezone.now().isoformat(),
+        'version': '1.0.0',
+        'python_version': f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        'django_version': '4.2.23',
+        'debug_mode': settings.DEBUG,
+        'components': {}
+    }
+    
+    # Check database
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        status_data['components']['database'] = 'healthy'
+    except Exception as e:
+        status_data['components']['database'] = f'unhealthy: {str(e)}'
+        status_data['status'] = 'degraded'
+    
+    # Check ML model
+    try:
+        from .ml_service import get_ml_predictor
+        predictor = get_ml_predictor()
+        if predictor.is_model_loaded():
+            status_data['components']['ml_model'] = 'healthy'
+        else:
+            status_data['components']['ml_model'] = 'not_loaded'
+            status_data['status'] = 'degraded'
+    except Exception as e:
+        status_data['components']['ml_model'] = f'unhealthy: {str(e)}'
+        status_data['status'] = 'degraded'
+    
+    # Check LLM services
+    try:
+        llm_status = []
+        if hasattr(settings, 'GEMINI_API_KEY') and settings.GEMINI_API_KEY:
+            llm_status.append('gemini')
+        if hasattr(settings, 'GROQ_API_KEY') and settings.GROQ_API_KEY:
+            llm_status.append('groq')
+        if hasattr(settings, 'OPENROUTER_API_KEY') and settings.OPENROUTER_API_KEY:
+            llm_status.append('openrouter')
+        if hasattr(settings, 'COHERE_API_KEY') and settings.COHERE_API_KEY:
+            llm_status.append('cohere')
+        
+        status_data['components']['llm_providers'] = llm_status if llm_status else ['none']
+    except Exception as e:
+        status_data['components']['llm_providers'] = f'error: {str(e)}'
+    
+    # Check Rasa
+    if settings.RASA_ENABLED:
+        try:
+            import requests
+            response = requests.get(f"{settings.RASA_SERVER_URL}/", timeout=5)
+            if response.status_code == 200:
+                status_data['components']['rasa'] = 'healthy'
+            else:
+                status_data['components']['rasa'] = 'unreachable'
+                status_data['status'] = 'degraded'
+        except Exception:
+            status_data['components']['rasa'] = 'unreachable'
+            status_data['status'] = 'degraded'
+    else:
+        status_data['components']['rasa'] = 'disabled'
+    
+    # Return appropriate HTTP status code
+    http_status = status.HTTP_200_OK if status_data['status'] == 'healthy' else status.HTTP_503_SERVICE_UNAVAILABLE
+    
+    return Response(status_data, status=http_status)

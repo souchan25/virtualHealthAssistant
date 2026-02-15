@@ -39,6 +39,8 @@ local_settings.py
 media/
 staticfiles/
 /static/
+Django/.env
+/django/.env
 
 # Django migrations (keep these, comment out if you want to exclude)
 # */migrations/*.py

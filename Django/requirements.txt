@@ -37,3 +37,7 @@ google-genai>=0.2.0  # New Gemini API (replaces google-generativeai)
 openai>=1.12.0  # For Groq API (OpenAI-compatible)
 cohere>=4.47
 python-dotenv>=1.0.0
+
+# Production Server
+gunicorn>=21.2.0
+whitenoise>=6.6.0  # Static file serving

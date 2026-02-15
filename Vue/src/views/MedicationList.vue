@@ -1,26 +1,45 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <!-- Navigation Header -->
-    <nav class="bg-white shadow-sm border-b-2 border-cpsu-green">
-      <div class="container mx-auto px-6 py-4">
+    <nav class="bg-white shadow-sm border-b-2 border-cpsu-green sticky top-0 z-40">
+      <div class="container mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
         <div class="flex justify-between items-center">
-          <router-link to="/dashboard" class="flex items-center space-x-4 text-cpsu-green">
-            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-12 w-12 object-contain">
-            <div>
-              <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
-              <p class="text-sm text-gray-600">Mighty Hornbills</p>
+          <router-link to="/dashboard" class="flex items-center space-x-2 sm:space-x-4 text-cpsu-green">
+            <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-10 w-10 sm:h-12 sm:w-12 object-contain">
+            <div class="hidden sm:block">
+              <h1 class="text-lg sm:text-xl lg:text-2xl font-heading font-bold">CPSU Health Assistant</h1>
+              <p class="text-xs sm:text-sm text-gray-600">Mighty Hornbills</p>
             </div>
           </router-link>
-          <div class="flex items-center space-x-4">
-            <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green">Dashboard</router-link>
-            <router-link to="/symptom-checker" class="text-gray-700 hover:text-cpsu-green">Check Symptoms</router-link>
-            <router-link to="/medications" class="text-cpsu-green font-semibold">Medications</router-link>
-            <router-link to="/followups" class="text-gray-700 hover:text-cpsu-green">Follow-Ups</router-link>
-            <router-link to="/health-dashboard" class="text-gray-700 hover:text-cpsu-green">Analytics</router-link>
-            <router-link to="/chat" class="text-gray-700 hover:text-cpsu-green">Chat</router-link>
-            <router-link to="/history" class="text-gray-700 hover:text-cpsu-green">History</router-link>
-            <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green">Profile</router-link>
+
+          <div class="hidden xl:flex items-center space-x-1 lg:space-x-2">
+            <router-link to="/dashboard" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm lg:text-base whitespace-nowrap">Dashboard</router-link>
+            <router-link to="/symptom-checker" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm lg:text-base whitespace-nowrap">Check Symptoms</router-link>
+            <router-link to="/medications" class="text-cpsu-green font-semibold px-2 lg:px-3 py-2 text-sm lg:text-base whitespace-nowrap">Medications</router-link>
+            <router-link to="/followups" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm lg:text-base whitespace-nowrap">Follow-Ups</router-link>
+            <router-link to="/health-dashboard" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm lg:text-base whitespace-nowrap">Analytics</router-link>
+            <router-link to="/chat" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm lg:text-base whitespace-nowrap">Chat</router-link>
+            <router-link to="/history" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm lg:text-base whitespace-nowrap">History</router-link>
+            <router-link to="/profile" class="text-gray-700 hover:text-cpsu-green px-2 lg:px-3 py-2 text-sm lg:text-base whitespace-nowrap">Profile</router-link>
           </div>
+
+          <button @click="mobileMenuOpen = !mobileMenuOpen" class="xl:hidden text-cpsu-green p-2 -mr-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="mobileMenuOpen" class="xl:hidden mt-3 pt-3 pb-2 space-y-2 border-t border-gray-200">
+          <router-link to="/dashboard" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Dashboard</router-link>
+          <router-link to="/symptom-checker" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Check Symptoms</router-link>
+          <router-link to="/medications" class="block px-4 py-2 text-cpsu-green font-semibold hover:bg-gray-100 rounded text-sm">Medications</router-link>
+          <router-link to="/followups" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Follow-Ups</router-link>
+          <router-link to="/health-dashboard" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Analytics</router-link>
+          <router-link to="/chat" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Chat</router-link>
+          <router-link to="/history" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">History</router-link>
+          <router-link to="/profile" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded text-sm">Profile</router-link>
         </div>
       </div>
     </nav>
@@ -202,6 +221,7 @@ import { useMedicationStore } from '@/stores/medication'
 import type { MedicationLog } from '@/types'
 
 const medicationStore = useMedicationStore()
+const mobileMenuOpen = ref(false)
 
 // Computed properties
 const todaysLogs = computed(() => medicationStore.todaysLogs)

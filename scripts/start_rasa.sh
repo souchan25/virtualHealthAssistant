@@ -45,7 +45,7 @@ train_rasa() {
     echo "📚 Training Rasa model..."
     echo "This will take 2-3 minutes..."
     cd Rasa
-    rasa train
+    python -m rasa train
     cd ..
 }
 
@@ -54,7 +54,15 @@ start_rasa_shell() {
     echo ""
     echo "💬 Starting Rasa interactive shell..."
     cd Rasa
-    rasa shell
+    python -m rasa shell
+}
+
+# Function to start Rasa action server
+start_rasa_actions() {
+    echo ""
+    echo "⚙️  Starting Rasa action server..."
+    cd Rasa
+    python -m rasa run actions --host 0.0.0.0 --port 5055
 }
 
 # Function to start Rasa server
@@ -62,39 +70,43 @@ start_rasa_server() {
     echo ""
     echo "🤖 Starting Rasa server..."
     cd Rasa
-    rasa run --enable-api --cors "*"
+    python -m rasa run --enable-api --cors "*" --host 0.0.0.0 --port 5005
 }
 
 # Main menu
 echo "What would you like to do?"
 echo ""
 echo "1) Train Rasa model (first time setup)"
-echo "2) Start Rasa shell (interactive testing)"
-echo "3) Start Rasa server (API mode)"
-echo "4) Check service status"
-echo "5) Exit"
+echo "2) Start Rasa action server (required for Django ML integration)"
+echo "3) Start Rasa shell (interactive testing)"
+echo "4) Start Rasa server (API mode)"
+echo "5) Check service status"
+echo "6) Exit"
 echo ""
-read -p "Enter choice [1-5]: " choice
+read -p "Enter choice [1-6]: " choice
 
 case $choice in
     1)
         train_rasa
         ;;
     2)
-        check_django
-        check_rasa_actions
-        start_rasa_shell
+        start_rasa_actions
         ;;
     3)
         check_django
         check_rasa_actions
-        start_rasa_server
+        start_rasa_shell
         ;;
     4)
         check_django
         check_rasa_actions
+        start_rasa_server
         ;;
     5)
+        check_django
+        check_rasa_actions
+        ;;
+    6)
         echo "Goodbye!"
         exit 0
         ;;

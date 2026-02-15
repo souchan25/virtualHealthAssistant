@@ -7,7 +7,7 @@
           <img src="@/assets/images/cpsu-logo.png" alt="CPSU Logo" class="h-16 w-16 object-contain">
           <div>
             <h1 class="text-2xl font-heading font-bold">CPSU Health Assistant</h1>
-            <p class="text-sm text-cpsu-yellow">Mighty Hornbills</p>
+            <p class="text-sm text-cpsu-yellow">Central Philippines State University</p>
           </div>
         </router-link>
         <div class="space-x-4">

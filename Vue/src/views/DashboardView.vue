@@ -139,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSymptomsStore } from '@/stores/symptoms'
@@ -147,6 +147,7 @@ import { useSymptomsStore } from '@/stores/symptoms'
 const router = useRouter()
 const authStore = useAuthStore()
 const symptomsStore = useSymptomsStore()
+const mobileMenuOpen = ref(false)
 
 onMounted(async () => {
   await symptomsStore.fetchHistory()

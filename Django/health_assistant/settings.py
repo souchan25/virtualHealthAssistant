@@ -14,23 +14,30 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables
+load_dotenv()
+load_dotenv(BASE_DIR.parent / '.env')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_4^g@0c(rus*&#x6sbjn^+w(2gk&v9mk@#u2p%!xhut=e=prpw'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-dev-key-only-for-local-testing')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['testserver', '.localhost', '127.0.0.1', '[::1]']
+def _get_env_list(name, default):
+    value = os.getenv(name)
+    if value:
+        return [item.strip() for item in value.split(',') if item.strip()]
+    return default
+
+ALLOWED_HOSTS = _get_env_list('DJANGO_ALLOWED_HOSTS', ['testserver', '.localhost', '127.0.0.1', '[::1]'])
 
 
 # Application definition
@@ -87,12 +94,40 @@ WSGI_APPLICATION = 'health_assistant.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Support both SQLite (dev) and PostgreSQL (production)
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL and DATABASE_URL.startswith('postgresql'):
+    # Parse PostgreSQL URL: postgresql://user:password@host:port/dbname
+    import re
+    match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', DATABASE_URL)
+    if match:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': match.group(5),
+                'USER': match.group(1),
+                'PASSWORD': match.group(2),
+                'HOST': match.group(3),
+                'PORT': match.group(4),
+            }
+        }
+    else:
+        # Fallback to SQLite if parsing fails
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
+else:
+    # Default to SQLite for development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
 
 
 # Password validation
@@ -130,6 +165,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files (user uploads)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -157,12 +197,16 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings (for frontend development)
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',      # React default
-    'http://127.0.0.1:3000',
-    'http://localhost:5173',      # Vite/Vue default
-    'http://127.0.0.1:5173',
-]
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
+CORS_ALLOWED_ORIGINS = _get_env_list(
+    'CORS_ALLOWED_ORIGINS',
+    [
+        'http://localhost:3000',      # React default
+        'http://127.0.0.1:3000',
+        'http://localhost:5173',      # Vite/Vue default
+        'http://127.0.0.1:5173',
+    ],
+)
 
 # Allow credentials (for cookies/auth tokens)
 CORS_ALLOW_CREDENTIALS = True
@@ -196,6 +240,51 @@ RASA_SERVER_URL = os.getenv('RASA_SERVER_URL', 'http://localhost:5005')
 RASA_TIMEOUT = int(os.getenv('RASA_TIMEOUT', '60'))  # 60 seconds for ML+LLM hybrid validation
 RASA_CONFIDENCE_THRESHOLD = float(os.getenv('RASA_CONFIDENCE_THRESHOLD', '0.6'))
 
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'maxBytes': 1024 * 1024 * 10,  # 10MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'] if not DEBUG else ['console'],
+        'level': os.getenv('LOG_LEVEL', 'INFO'),
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'level': os.getenv('LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'clinic': {
+            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'level': os.getenv('LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+    },
+}
+
 # CPSU Departments
 CPSU_DEPARTMENTS = [
     'College of Agriculture and Forestry',
@@ -213,9 +302,18 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 86400  # 24 hours
 
 # Security settings for production
-# SECURE_SSL_REDIRECT = True
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False') == 'True'
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'False') == 'True'
+
+# Additional security settings for production
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
 
 # ========================================
 # JAZZMIN ADMIN PANEL CONFIGURATION

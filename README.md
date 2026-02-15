@@ -249,16 +249,40 @@ For support: [Contact information]
 
 ## 📞 Quick Links
 
+### Documentation
 - 📖 **Documentation Index**: [Django/DOCUMENTATION_INDEX.md](Django/DOCUMENTATION_INDEX.md)
-- 🚀 **Django Setup**: [Django/README.md](Django/README.md)
-- 🤖 **ML Setup**: [ML/README.md](ML/README.md)
 - 🎯 **Complete Guide**: [docs/guides/PROJECT_COMPLETE.md](docs/guides/PROJECT_COMPLETE.md)
 - 🔌 **API Docs**: [Django/docs/api/API_DOCS.md](Django/docs/api/API_DOCS.md)
+
+### Setup & Deployment
+- ⚡ **Quick Deploy**: [QUICK_DEPLOY.md](QUICK_DEPLOY.md) - Start here!
+- 🚀 **Full Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
+- ✅ **Deployment Checklist**: [PRE_DEPLOYMENT_CHECKLIST.md](PRE_DEPLOYMENT_CHECKLIST.md)
+- 🔒 **Security Guide**: [SECURITY.md](SECURITY.md) - **Read before deploying!**
+- 🌐 **Network Setup**: [docs/guides/NETWORK_CHANGE_GUIDE.md](docs/guides/NETWORK_CHANGE_GUIDE.md)
+
+### Component Setup
+- 🚀 **Django Setup**: [Django/README.md](Django/README.md)
+- 🤖 **ML Setup**: [ML/README.md](ML/README.md)
+- 💻 **Vue Setup**: [Vue/README.md](Vue/README.md)
+
+---
+
+## ⚠️ Before You Deploy
+
+**CRITICAL:** Your API keys are currently exposed in the git repository!
+
+**Take these actions IMMEDIATELY:**
+1. Rotate all API keys (Gemini, OpenRouter, Groq, Cohere)
+2. Remove `.env` from git: `git rm --cached Django/.env`
+3. Generate new Django secret key: `python Django/generate_secret_key.py`
+
+See [SECURITY.md](SECURITY.md) for detailed instructions.
 
 ---
 
 **Built with ❤️ for CPSU Students**
 
-*Last Updated: October 29, 2025*
+*Last Updated: February 15, 2026*
 
-**Status**: ✅ Production Ready
+**Status**: ✅ Production Ready (after security fixes)

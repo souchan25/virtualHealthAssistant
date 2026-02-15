@@ -14,6 +14,9 @@ router.register(r'audit', views.AuditLogViewSet, basename='audit')
 app_name = 'clinic'
 
 urlpatterns = [
+    # Health check endpoint (no authentication required)
+    path('health/', views.health_check, name='health-check'),
+    
     # Authentication endpoints
     path('auth/register/', views.register_user, name='register'),
     path('auth/login/', views.login_user, name='login'),

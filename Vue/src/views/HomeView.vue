@@ -453,7 +453,7 @@
     </section>
 
     <!-- Meet the Team Section -->
-    <section class="py-20 bg-gradient-to-br from-cpsu-green/5 to-cpsu-yellow/5">
+    <!-- <section class="py-20 bg-gradient-to-br from-cpsu-green/5 to-cpsu-yellow/5">
       <div class="container mx-auto px-6">
         <div class="max-w-6xl mx-auto">
           <div class="text-center mb-16">
@@ -467,10 +467,10 @@
             </div>
           </div>
 
-          <!-- Team Members Grid -->
-          <div class="grid md:grid-cols-3 gap-8 mb-12">
+         <!-- Team Members Grid -->
+          <!-- <div class="grid md:grid-cols-3 gap-8 mb-12"> -->
             <!-- Team Member 1 - You can customize these -->
-            <div class="team-card">
+            <!-- <div class="team-card">
               <div class="w-24 h-24 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold">
                 👨‍💻
               </div>
@@ -482,10 +482,10 @@
                 <p>• AI/ML Integration</p>
                 <p>• Backend Development</p>
               </div>
-            </div>
+            </div> -->
 
             <!-- Team Member 2 -->
-            <div class="team-card">
+            <!-- <div class="team-card">
               <div class="w-24 h-24 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold">
                 👨‍💻
               </div>
@@ -497,10 +497,10 @@
                 <p>• User Interface Design</p>
                 <p>• User Experience</p>
               </div>
-            </div>
+            </div> -->
 
             <!-- Team Member 3 -->
-            <div class="team-card">
+            <!-- <div class="team-card">
               <div class="w-24 h-24 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold">
                 👨‍💻
               </div>
@@ -512,10 +512,10 @@
                 <p>• Dataset Management</p>
                 <p>• Model Training</p>
               </div>
-            </div>
+            </div> -->
 
             <!-- Add more team members as needed -->
-            <div class="team-card">
+            <!-- <div class="team-card">
               <div class="w-24 h-24 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold">
                 👩‍💻
               </div>
@@ -528,10 +528,10 @@
                 <p>• Quality Assurance</p>
               </div>
             </div>
-          </div>
+          </div> -->
 
           <!-- Thesis Advisors -->
-          <div class="bg-white rounded-lg shadow-lg p-8 border-l-4 border-cpsu-green">
+          <!-- <div class="bg-white rounded-lg shadow-lg p-8 border-l-4 border-cpsu-green">
             <h3 class="text-2xl font-bold text-cpsu-green mb-6 text-center">Thesis Advisors & Acknowledgments</h3>
             <div class="grid md:grid-cols-2 gap-6">
               <div class="text-center">
@@ -556,10 +556,10 @@
                 Special thanks to the CPSU Clinic staff, faculty members, and all students who participated in testing and providing valuable feedback for this project.
               </p>
             </div>
-          </div>
+          </div> -->
 
           <!-- Project Info -->
-          <div class="mt-8 grid md:grid-cols-3 gap-6">
+          <!-- <div class="mt-8 grid md:grid-cols-3 gap-6">
             <div class="bg-white rounded-lg shadow p-6 text-center">
               <div class="text-3xl mb-2">📚</div>
               <h4 class="font-bold text-gray-800 mb-2">Academic Year</h4>
@@ -578,7 +578,7 @@
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <!-- Contact Section -->
     <section id="contact" class="py-20 bg-gradient-to-br from-cpsu-green to-cpsu-green-dark text-white">

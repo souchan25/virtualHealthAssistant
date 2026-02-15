@@ -50,8 +50,6 @@ class ActionExtractSymptoms(Action):
         if new_symptoms:
             symptom_list = ", ".join(new_symptoms)
             dispatcher.utter_message(text=f"I've noted: {symptom_list}")
-            # Ask if there are more symptoms
-            dispatcher.utter_message(response="utter_ask_more_symptoms")
         
         return [SlotSet("symptoms", all_symptoms)]
 

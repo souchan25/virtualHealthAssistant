@@ -142,9 +142,11 @@ class AIInsightGenerator:
             AI-generated response
         """
         # Build system prompt
-        system_prompt = """You are a compassionate health assistant for CPSU (Central Philippines State University) students.
+        system_prompt = """You are a compassionate health assistant for CPSU (Central Philippines State University) students. Your STRICT scope is HEALTH only.
         
 Guidelines:
+- REFUSE to answer non-health questions (e.g. recipes, coding, math).
+- If asked about non-health topics, kindly reply: "I am a health assistant and can only help with medical or health-related concerns."
 - Provide supportive, empathetic health guidance
 - Support English, Filipino, and local Philippine dialects
 - Always recommend seeing clinic staff for serious concerns
@@ -181,7 +183,7 @@ Guidelines:
             try:
                 # Prepare payload - json parameter will properly escape all special characters
                 payload = {
-                    "model": "mistralai/devstral-2512:free",
+                    "model": "stepfun/step-3.5-flash:free",
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": message}
@@ -206,7 +208,7 @@ Guidelines:
                     result = response.json()
                     content = result['choices'][0]['message']['content']
                     if content and content.strip():
-                        self.logger.info("Response from OpenRouter (Mistral Devstral)")
+                        self.logger.info("Response from OpenRouter (StepFun)")
                         return content
                     else:
                         raise ValueError("Empty response from OpenRouter")
@@ -235,10 +237,10 @@ Guidelines:
                     prompt += f"\n\nContext: {context.get('summary', '')}"
                 
                 response = self.gemini_client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-3-flash-preview",
                     contents=prompt
                 )
-                self.logger.info("Response from Gemini 2.5 Flash (last fallback)")
+                self.logger.info("Response from Gemini 3 Flash (last fallback)")
                 return response.text
             except Exception as e:
                 self.logger.error(f"Gemini (last fallback) failed: {e}")
@@ -303,7 +305,7 @@ Keep each insight under 100 words. Be culturally sensitive to Filipino students.
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": "mistralai/devstral-2512:free",
+                        "model": "stepfun/step-3.5-flash:free",
                         "messages": [{"role": "user", "content": prompt}],
                         "temperature": 0.5,
                         "max_tokens": 800
@@ -320,7 +322,7 @@ Keep each insight under 100 words. Be culturally sensitive to Filipino students.
         if not insights_text and self.gemini_client:
             try:
                 response = self.gemini_client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-3-flash-preview",
                     contents=prompt
                 )
                 insights_text = response.text
