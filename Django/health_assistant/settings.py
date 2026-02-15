@@ -12,9 +12,10 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import re
 from dotenv import load_dotenv
 import dj_database_url
-from urllib.parse import quote, urlparse, urlunparse
+from urllib.parse import quote
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,8 +41,6 @@ def encode_database_url(database_url):
         return None
     
     try:
-        import re
-        
         # Check if URL appears to already be encoded (contains % followed by hex digits)
         # If so, return as-is to avoid double encoding
         if re.search(r'%[0-9A-Fa-f]{2}', database_url):
