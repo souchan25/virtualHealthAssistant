@@ -37,7 +37,6 @@ click-plugins==1.1.1
 click-repl==0.3.0
 cloudinary==1.38.0
 clr-loader==0.2.6
-cohere==4.47.0
 colorama==0.4.6
 coloredlogs==15.0.1
 comm==0.2.1
