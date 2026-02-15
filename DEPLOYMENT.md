@@ -535,6 +535,30 @@ sudo nginx -t
 ls -la Django/staticfiles/
 ```
 
+### CSS Post-Processing Errors (collectstatic fails)
+
+If you see errors like `Post-processing 'vendor/bootswatch/yeti/bootstrap.min.css' failed!`:
+
+**Solution**: The project uses `CompressedStaticFilesStorage` instead of `CompressedManifestStaticFilesStorage` to avoid strict manifest checking that can fail with third-party CSS files.
+
+**Already Fixed**: This is already configured in `Django/health_assistant/settings.py`:
+```python
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+```
+
+If you still encounter issues:
+```bash
+# 1. Clear existing static files
+rm -rf Django/staticfiles/*
+
+# 2. Recollect without compression (for debugging)
+cd Django
+WHITENOISE_AUTOREFRESH=1 python manage.py collectstatic --noinput
+
+# 3. Check for missing files in error message
+# and remove problematic third-party packages if necessary
+```
+
 ---
 
 ## 📞 Support
