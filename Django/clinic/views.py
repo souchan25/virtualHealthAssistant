@@ -34,10 +34,9 @@ logger = logging.getLogger(__name__)
 from .llm_service import AIInsightGenerator
 from .rasa_service import RasaChatService
 
-# Get singleton instances
-ml_predictor = get_ml_predictor()
-ai_generator = AIInsightGenerator()
-rasa_service = RasaChatService()
+# Note: Services use singleton pattern internally, so instantiating them multiple times
+# returns the same instance. We instantiate them in views as needed to avoid blocking
+# Django startup during module import (which causes Gunicorn worker timeouts).
 
 User = get_user_model()
 
@@ -372,6 +371,7 @@ def send_chat_message(request):
         # LLM only used as fallback when Rasa fails
         
         # Step 1: Send message to Rasa
+        rasa_service = RasaChatService()
         rasa_response = rasa_service.send_message(
             message=message,
             sender_id=str(session_id),
@@ -387,6 +387,7 @@ def send_chat_message(request):
             # LLM Fallback: Only when Rasa completely fails
             logger.warning(f"Using LLM fallback (Rasa {'unavailable' if not rasa_service.is_available() else 'low confidence'})")
             try:
+                ai_generator = AIInsightGenerator()
                 response_text = ai_generator.generate_chat_response(
                     message=message,
                     context={'language': language, 'session_id': str(session_id), 'rasa_failed': True}
@@ -530,6 +531,7 @@ def generate_insights(request):
         prediction_results = predictor.predict(symptoms)
         
         # Generate new insights using LLM service
+        ai_generator = AIInsightGenerator()
         insights_data = ai_generator.generate_health_insights(
             symptoms=symptoms,
             predictions=prediction_results,
