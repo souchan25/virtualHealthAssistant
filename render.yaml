@@ -6,7 +6,7 @@ services:
     plan: free
     branch: main
     buildCommand: ./render_build.sh
-    startCommand: cd Django && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+    startCommand: cd Django && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --graceful-timeout 30
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7

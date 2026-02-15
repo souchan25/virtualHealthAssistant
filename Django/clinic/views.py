@@ -14,6 +14,7 @@ from django.db.models import Count, Q
 from datetime import timedelta
 import uuid
 import logging
+import requests
 
 from .models import SymptomRecord, HealthInsight, ChatSession, ConsentLog, AuditLog, DepartmentStats, EmergencyAlert, Medication, MedicationLog, FollowUp
 from .serializers import (
@@ -395,6 +396,9 @@ def send_chat_message(request):
                 # Ensure response is not None or empty
                 if not response_text or not response_text.strip():
                     raise ValueError("LLM returned empty response")
+            except requests.exceptions.Timeout as timeout_error:
+                logger.error(f"LLM call timed out: {timeout_error}")
+                response_text = "I apologize for the delay. The system is experiencing high load. Please try again in a moment, or consult with our clinic staff for immediate assistance."
             except Exception as llm_error:
                 logger.error(f"LLM fallback failed: {llm_error}")
                 # Ultimate fallback - hardcoded response

@@ -55,7 +55,10 @@ class AIInsightGenerator:
         
         if GEMINI_AVAILABLE and settings.GEMINI_API_KEY:
             try:
-                self.gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
+                self.gemini_client = genai.Client(
+                    api_key=settings.GEMINI_API_KEY,
+                    http_options={'timeout': 30}  # Add 30 second timeout
+                )
                 self.logger.info("Gemini AI initialized successfully (new API)")
             except Exception as e:
                 self.logger.error(f"Gemini initialization failed: {e}")
@@ -78,6 +81,7 @@ class AIInsightGenerator:
                 self.groq_client = OpenAI(
                     api_key=settings.GROQ_API_KEY,
                     base_url="https://api.groq.com/openai/v1",
+                    timeout=30.0  # Add 30 second timeout
                 )
                 self.logger.info("Groq API initialized successfully")
             except Exception as e:
@@ -89,7 +93,7 @@ class AIInsightGenerator:
         # Initialize Cohere
         if COHERE_AVAILABLE and settings.COHERE_API_KEY:
             try:
-                self.cohere_client = cohere.Client(settings.COHERE_API_KEY)
+                self.cohere_client = cohere.Client(settings.COHERE_API_KEY, timeout=30)
                 self.logger.info("Cohere AI initialized successfully")
             except Exception as e:
                 self.logger.error(f"Cohere initialization failed: {e}")
