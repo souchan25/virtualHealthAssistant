@@ -43,6 +43,10 @@ echo ""
 echo "--- Step 3: Setting up Django ---"
 cd Django
 
+# Create logs directory if it doesn't exist
+echo "Creating logs directory..."
+mkdir -p logs
+
 # Collect static files
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
