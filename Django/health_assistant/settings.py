@@ -348,7 +348,6 @@ CORS_ALLOWED_ORIGINS = _get_env_list(
     ],
 )
 
-import re
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://virtual-health-assistant.*\.vercel\.app$",  # Match all Vercel deployments
     r"^https://.*\.azurewebsites\.net$",  # Match all Azure App Service deployments
