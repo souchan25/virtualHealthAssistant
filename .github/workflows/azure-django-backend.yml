@@ -69,11 +69,10 @@ jobs:
         run: |
           mkdir -p deployment
           
-          # Copy ALL Django files and directories
+          # Copy ALL Django files and directories (preserving structure)
           cp -r Django/* deployment/
-          cp -r Django/.* deployment/ 2>/dev/null || true
           
-          # Copy ML models to deployment root
+          # Copy ML models
           mkdir -p deployment/ML/models
           cp -r ML/models/* deployment/ML/models/ 2>/dev/null || true
           
@@ -114,15 +113,19 @@ jobs:
             ls -la health_assistant/
           else
             echo "❌ health_assistant directory NOT found"
+            echo "Available directories:"
+            ls -d */ 2>/dev/null || echo "No directories found"
             exit 1
           fi
 
       - name: Deploy to Azure Web App
+        id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: .
+          clean: true
 
       - name: Deployment Success
         run: |
