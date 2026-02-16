@@ -34,8 +34,8 @@ COPY ML/ /app/ML/
 # Create necessary directories
 RUN mkdir -p /app/Django/logs /app/Django/staticfiles /app/Django/media
 
-# Train ML model
-RUN python /app/ML/scripts/train_model_realistic.py
+# Verify file structure and Train ML model
+RUN ls -R /app/ML && python /app/ML/scripts/train_model_realistic.py
 
 # Collect static files
 WORKDIR /app/Django
