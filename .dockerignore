@@ -6,8 +6,10 @@
 !Django/
 !Django_requirements.txt
 
-# Allow ML models (required for prediction)
+# Allow ML models, scripts, and datasets (required for training during build)
 !ML/models/
+!ML/Datasets/
+!ML/scripts/
 
 # Exclude unnecessary Django files
 Django/__pycache__/
@@ -17,9 +19,7 @@ Django/media/
 Django/staticfiles/
 Django/tests/
 
-# Exclude ML training data and scripts (only need trained models)
-ML/Datasets/
-ML/scripts/
+# Exclude ML docs and notebooks
 ML/docs/
 ML/notebooks/
 ML/__pycache__/
