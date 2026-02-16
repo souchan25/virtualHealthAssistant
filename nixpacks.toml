@@ -9,4 +9,4 @@ cmds = [
 ]
 
 [start]
-cmd = "python Django/manage.py migrate --noinput && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --chdir Django"
+cmd = "cd Django && python manage.py migrate --noinput && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"

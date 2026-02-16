@@ -5,7 +5,7 @@
     "buildCommand": "pip install -r Django/requirements.txt && python ML/scripts/train_model_realistic.py"
   },
   "deploy": {
-    "startCommand": "gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --chdir Django",
+    "startCommand": "cd Django && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
