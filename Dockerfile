@@ -34,6 +34,9 @@ COPY ML/ /app/ML/
 # Create necessary directories
 RUN mkdir -p /app/Django/logs /app/Django/staticfiles /app/Django/media
 
+# Train ML model
+RUN python /app/ML/scripts/train_model_realistic.py
+
 # Collect static files
 WORKDIR /app/Django
 RUN python manage.py collectstatic --noinput || true
@@ -48,7 +51,7 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)" || exit 1
+    CMD python -c "import urllib.request, os; port = os.getenv('PORT', '8000'); urllib.request.urlopen(f'http://localhost:{port}/api/health/', timeout=5)" || exit 1
 
 # Run gunicorn
 CMD gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 60 health_assistant.wsgi:application
