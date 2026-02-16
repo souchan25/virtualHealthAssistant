@@ -1,0 +1,12 @@
+[phases.install]
+cmds = [
+    "pip install -r Django/requirements.txt"
+]
+
+[phases.build]
+cmds = [
+    "python ML/scripts/train_model_realistic.py"
+]
+
+[start]
+cmd = "python Django/manage.py migrate --noinput && gunicorn health_assistant.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --chdir Django"
