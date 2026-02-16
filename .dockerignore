@@ -17,9 +17,9 @@ Django/media/
 Django/staticfiles/
 Django/tests/
 
-# Exclude ML training data and scripts (only need trained models)
-ML/Datasets/
-ML/scripts/
+# Allow ML training data and scripts (needed for build-time training)
+!ML/Datasets/
+!ML/scripts/
 ML/docs/
 ML/notebooks/
 ML/__pycache__/
