@@ -58,6 +58,10 @@ ML/models/*.pth
 ML/models/*.joblib
 ML/models/*.keras
 
+# EXCEPTION: Include production models for deployment
+!ML/models/disease_predictor_v2.pkl
+!ML/models/disease_predictor.pkl
+
 # Keep a README in models directory
 !ML/models/README.md
 !ML/models/.gitkeep
