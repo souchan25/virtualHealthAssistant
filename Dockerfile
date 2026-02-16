@@ -34,6 +34,9 @@ COPY ML/ /app/ML/
 # Create necessary directories
 RUN mkdir -p /app/Django/logs /app/Django/staticfiles /app/Django/media
 
+# Train ML model
+RUN python /app/ML/scripts/train_model_realistic.py
+
 # Collect static files
 WORKDIR /app/Django
 RUN python manage.py collectstatic --noinput || true
