@@ -6,6 +6,17 @@ Supports multiple LLM providers: Gemini, OpenRouter (Qwen 3), Groq, and Cohere
 import logging
 import re
 from typing import Dict, List
+
+# Pre-compiled regex patterns for JSON cleanup
+RE_TRUE_FALSE = re.compile(r':\s*true/false')
+RE_TRAILING_COMMA_BRACE = re.compile(r',\s*}')
+RE_TRAILING_COMMA_BRACKET = re.compile(r',\s*]')
+RE_SINGLE_QUOTE_KEY = re.compile(r"'(\w+)':")
+RE_SINGLE_QUOTE_VALUE = re.compile(r":\s*'([^']*)'")
+RE_NULL = re.compile(r':\s*null\b', flags=re.IGNORECASE)
+RE_NONE = re.compile(r':\s*None\b')
+RE_TRUE = re.compile(r':\s*True\b')
+RE_FALSE = re.compile(r':\s*False\b')
 from django.conf import settings
 import os
 import requests
@@ -112,24 +123,24 @@ class AIInsightGenerator:
             return text
         
         # Fix "true/false" literal (LLM copies from prompt example)
-        text = re.sub(r':\s*true/false', ': true', text)
+        text = RE_TRUE_FALSE.sub(': true', text)
         
         # Fix trailing commas before closing braces
-        text = re.sub(r',\s*}', '}', text)
-        text = re.sub(r',\s*]', ']', text)
+        text = RE_TRAILING_COMMA_BRACE.sub('}', text)
+        text = RE_TRAILING_COMMA_BRACKET.sub(']', text)
         
         # Fix single quotes to double quotes
         # Be careful not to change apostrophes in text
-        text = re.sub(r"'(\w+)':", r'"\1":', text)  # 'key': -> "key":
-        text = re.sub(r":\s*'([^']*)'", r': "\1"', text)  # : 'value' -> : "value"
+        text = RE_SINGLE_QUOTE_KEY.sub(r'"\1":', text)  # 'key': -> "key":
+        text = RE_SINGLE_QUOTE_VALUE.sub(r': "\1"', text)  # : 'value' -> : "value"
         
         # Fix unquoted null
-        text = re.sub(r':\s*null\b', ': null', text, flags=re.IGNORECASE)
-        text = re.sub(r':\s*None\b', ': null', text)
+        text = RE_NULL.sub(': null', text)
+        text = RE_NONE.sub(': null', text)
         
         # Fix Python-style booleans
-        text = re.sub(r':\s*True\b', ': true', text)
-        text = re.sub(r':\s*False\b', ': false', text)
+        text = RE_TRUE.sub(': true', text)
+        text = RE_FALSE.sub(': false', text)
         
         return text
     
